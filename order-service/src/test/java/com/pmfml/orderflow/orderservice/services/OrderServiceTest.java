@@ -1,7 +1,7 @@
 package com.pmfml.orderflow.orderservice.services;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.pmfml.orderflow.orderservice.dtos.CreateOrderRequest;
 import com.pmfml.orderflow.orderservice.dtos.OrderItemRequest;
 import com.pmfml.orderflow.orderservice.dtos.OrderResponse;
@@ -68,7 +68,7 @@ class OrderServiceTest {
     }
 
     @Test
-    void shouldCreateOrderAndOutboxEvent() throws JsonProcessingException {
+    void shouldCreateOrderAndOutboxEvent() throws JacksonException {
         // Given
         String tenantId = "tenant-123";
         CreateOrderRequest request = new CreateOrderRequest(List.of(
@@ -117,7 +117,7 @@ class OrderServiceTest {
     }
 
     @Test
-    void shouldThrowExceptionWhenSerializationFails() throws JsonProcessingException {
+    void shouldThrowExceptionWhenSerializationFails() throws JacksonException {
         // Given
         CreateOrderRequest request = new CreateOrderRequest(List.of(new OrderItemRequest("prod-1", 1)));
         
@@ -132,7 +132,7 @@ class OrderServiceTest {
                 .build();
         given(orderRepository.save(any(Order.class))).willReturn(savedOrder);
         
-        given(objectMapper.writeValueAsString(any())).willThrow(new JsonProcessingException("Mock error") {});
+        given(objectMapper.writeValueAsString(any())).willThrow(new JacksonException("Mock error") {});
 
         // When & Then
         assertThatThrownBy(() -> orderService.createOrder(request, "tenant-1"))

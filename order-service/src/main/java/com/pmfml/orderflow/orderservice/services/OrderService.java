@@ -1,7 +1,7 @@
 package com.pmfml.orderflow.orderservice.services;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.pmfml.orderflow.orderservice.dtos.CreateOrderRequest;
 import com.pmfml.orderflow.orderservice.dtos.OrderResponse;
 import com.pmfml.orderflow.orderservice.entities.Order;
@@ -109,7 +109,7 @@ public class OrderService {
             outboxEventRepository.save(event);
             log.debug("[Outbox] Wrote orders.created event: orderId={}", order.getId());
             
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.error("[Outbox] Failed to serialize order event payload: orderId={}", order.getId(), e);
             throw new RuntimeException("Failed to serialize outbox event payload", e);
         }
