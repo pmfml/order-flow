@@ -12,6 +12,7 @@ Guide to errors encountered during development and their solutions.
 3. [Spring Boot 4.1 — WebMvcTest package not found](#3-spring-boot-41--webmvctest-package-not-found)
 4. [Spring Boot 4.1 — ObjectMapper bean not found (Jackson 3 migration)](#4-spring-boot-41--objectmapper-bean-not-found-jackson-3-migration)
 5. [Hibernate Validator — @Valid on container is deprecated](#5-hibernate-validator--valid-on-container-is-deprecated)
+6. [Spring Boot 4.1 — DataMongoTest package not found](#6-spring-boot-41--datamongotest-package-not-found)
 
 ---
 
@@ -180,4 +181,31 @@ List<OrderItemRequest> items;
 
 // ✅ After
 List<@Valid OrderItemRequest> items;
+```
+
+---
+
+## 6. Spring Boot 4.1 — DataMongoTest package not found
+
+### Error
+
+```text
+[ERROR] .../ProductRepositoryTest.java:[8,62] package org.springframework.boot.test.autoconfigure.data.mongo does not exist
+```
+
+### Cause
+
+As with `@DataJpaTest` and `@WebMvcTest`, the MongoDB slice test annotation was moved to a new module/package in Spring Boot 4.1.
+
+### Solution
+
+1. Ensure you have the `spring-boot-starter-data-mongodb-test` dependency in `pom.xml`.
+2. Update the import in your test classes:
+
+```java
+// ❌ Before
+import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
+
+// ✅ After
+import org.springframework.boot.data.mongodb.test.autoconfigure.DataMongoTest;
 ```
