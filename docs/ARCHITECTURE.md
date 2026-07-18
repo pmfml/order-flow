@@ -287,3 +287,18 @@ None of these collide with MCNE (Postgres 5435, RabbitMQ 5672/15672, app 8081) o
 - Lambda calls Payment Service via internal REST instead of publishing to Kafka directly — avoids requiring MSK access from Lambda; noted as a scaling consideration.
 - Consider swapping the simulated payment provider for **real Stripe test-mode webhooks** — free, and exercises actual webhook signature verification and payload handling instead of a hand-rolled approximation.
 - Choreographed Saga instead of an orchestrator — intentional EDA-first choice; an orchestrated version (e.g., with a `SagaOrchestrator` state machine or Temporal) trades independence for centralized visibility, worth revisiting if the number of saga branches grows.
+
+## 17. Implementation Status
+
+### ✅ Phase 0: Foundation
+- Monorepo structure, Maven reactor (`order-flow-parent`).
+- Docker Compose infrastructure (PostgreSQL, MongoDB, Redis, Kafka, Prometheus, Grafana).
+- Base documentation (`README.md`, `ARCHITECTURE.md`, `TROUBLESHOOTING.md`).
+
+### ✅ Phase 1: Order Service Core
+- Flyway migrations for `orders`, `order_items`, and `outbox_events` (PostgreSQL 16).
+- JPA Entities and Repositories with tenant isolation logic (`tenantId`).
+- `OrderService` implementing the **Transactional Outbox** pattern.
+- REST `OrderController` with strict JSON validation and RFC 7807 (`ProblemDetail`) error handling via `GlobalExceptionHandler`.
+- `DummyInventoryClient` created as a placeholder for the future gRPC implementation.
+- Full test coverage with MockMvc, Mockito, and Testcontainers.
