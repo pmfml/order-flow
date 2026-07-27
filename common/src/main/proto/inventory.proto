@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package com.pmfml.orderflow.grpc.inventory;
+
+option java_multiple_files = true;
+option java_package = "com.pmfml.orderflow.common.grpc.inventory";
+option java_outer_classname = "InventoryProto";
+
+service InventoryService {
+    // Synchronously checks stock availability and returns authoritative product info (name, price)
+    rpc CheckStock (CheckStockRequest) returns (CheckStockResponse);
+}
+
+message CheckStockRequest {
+    string product_id = 1;
+    string tenant_id = 2;
+}
+
+message CheckStockResponse {
+    bool available = 1;
+    string product_id = 2;
+    string name = 3;
+    string price = 4; // Using string to preserve exact BigDecimal precision without floating point issues
+}
