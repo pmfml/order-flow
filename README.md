@@ -180,7 +180,8 @@ order-flow/
 │   ├── docker-compose.yml           # Kafka, Postgres, Mongo, Redis, Prometheus, Grafana
 │   └── init-db.sh                   # Creates per-service databases on first startup
 ├── docs/
-│   └── ARCHITECTURE.md              # Full design rationale, diagrams, and trade-offs
+│   ├── ARCHITECTURE.md              # Full design rationale, diagrams, and trade-offs
+│   └── TROUBLESHOOTING.md           # Solutions to Spring Boot 4.1 migration issues
 └── README.md
 ```
 
@@ -191,3 +192,4 @@ order-flow/
 Architecture decisions, component diagrams, Saga sequence flows, data schemas, and design trade-offs are documented in the living architecture reference:
 
 - [ARCHITECTURE.md](docs/ARCHITECTURE.md): System overview, service responsibilities, Kafka topic map, multi-tenancy model, event envelope schema, and future improvement roadmap.
+- [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md): Documented solutions for Spring Boot 4.1 breaking changes (Jackson 3 migration, test annotation package moves, Hibernate Validator deprecations).

@@ -72,7 +72,8 @@ orderflow/
 ├── infra/
 │   └── docker-compose.yml         # Kafka, Postgres, Mongo, Redis, Prometheus, Grafana
 ├── docs/
-│   └── ARCHITECTURE.md
+│   ├── ARCHITECTURE.md
+│   └── TROUBLESHOOTING.md         # Solutions to known Spring Boot 4.1 migration issues
 └── README.md
 ```
 
@@ -300,5 +301,12 @@ None of these collide with MCNE (Postgres 5435, RabbitMQ 5672/15672, app 8081) o
 - JPA Entities and Repositories with tenant isolation logic (`tenantId`).
 - `OrderService` implementing the **Transactional Outbox** pattern.
 - REST `OrderController` with strict JSON validation and RFC 7807 (`ProblemDetail`) error handling via `GlobalExceptionHandler`.
-- `DummyInventoryClient` created as a placeholder for the future gRPC implementation.
 - Full test coverage with MockMvc, Mockito, and Testcontainers.
+
+### ✅ Phase 2: Inventory Service & gRPC Integration
+- MongoDB `Product` document with flexible `attributes` map and compound tenant/SKU index.
+- `ProductRepository` with tenant-scoped queries, validated by Testcontainers integration tests.
+- gRPC contract (`inventory.proto`) in the shared `common` module with `protobuf-maven-plugin` code generation.
+- `InventoryGrpcService` (server, port 9095) serving `CheckStock` RPCs from MongoDB.
+- `GrpcInventoryClient` (client) replacing the placeholder `DummyInventoryClient` in `order-service`.
+- `InventoryClient` interface updated to enforce `tenantId` propagation across service boundaries.
