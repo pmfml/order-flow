@@ -57,7 +57,7 @@ public class OrderService {
 
         for (var itemRequest : request.items()) {
             // 1. Fetch authoritative product info (avoids trust in client prices)
-            InventoryClient.ProductInfo productInfo = inventoryClient.fetchProduct(itemRequest.productId());
+            InventoryClient.ProductInfo productInfo = inventoryClient.fetchProduct(itemRequest.productId(), tenantId);
 
             // 2. Build the snapshot line item
             OrderItem orderItem = OrderItem.builder()

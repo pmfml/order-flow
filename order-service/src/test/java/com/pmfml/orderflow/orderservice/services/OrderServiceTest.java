@@ -76,9 +76,9 @@ class OrderServiceTest {
                 new OrderItemRequest("prod-2", 1)
         ));
 
-        given(inventoryClient.fetchProduct("prod-1"))
+        given(inventoryClient.fetchProduct("prod-1", tenantId))
                 .willReturn(new InventoryClient.ProductInfo("prod-1", "Laptop", new BigDecimal("1000.00")));
-        given(inventoryClient.fetchProduct("prod-2"))
+        given(inventoryClient.fetchProduct("prod-2", tenantId))
                 .willReturn(new InventoryClient.ProductInfo("prod-2", "Mouse", new BigDecimal("50.00")));
 
         Order savedOrder = Order.builder()
@@ -121,7 +121,7 @@ class OrderServiceTest {
         // Given
         CreateOrderRequest request = new CreateOrderRequest(List.of(new OrderItemRequest("prod-1", 1)));
         
-        given(inventoryClient.fetchProduct("prod-1"))
+        given(inventoryClient.fetchProduct("prod-1", "tenant-1"))
                 .willReturn(new InventoryClient.ProductInfo("prod-1", "A", BigDecimal.TEN));
                 
         Order savedOrder = Order.builder()
