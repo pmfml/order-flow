@@ -310,3 +310,10 @@ None of these collide with MCNE (Postgres 5435, RabbitMQ 5672/15672, app 8081) o
 - `InventoryGrpcService` (server, port 9095) serving `CheckStock` RPCs from MongoDB.
 - `GrpcInventoryClient` (client) replacing the placeholder `DummyInventoryClient` in `order-service`.
 - `InventoryClient` interface updated to enforce `tenantId` propagation across service boundaries.
+
+### ✅ Phase 3: Outbox Poller → Kafka
+- `OutboxPublisher` scheduled component polling `outbox_events` every 500ms.
+- Kafka producer publishing to `orders.created` topic with `aggregateId` as message key (per-order partition ordering).
+- At-least-once delivery: events remain unprocessed on Kafka failure and are retried on the next cycle.
+- `@EnableScheduling` activated in `OrderServiceApplication`.
+- Full unit test coverage for happy path, empty outbox, Kafka failure, and batch processing.
