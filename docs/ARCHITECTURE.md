@@ -148,6 +148,15 @@ Naming convention: `<domain>.<event-in-past-tense>`, kebab-case.
 }
 ```
 
+Implemented as `EventEnvelope` in the `common` module. **[EVENTS.md](EVENTS.md)** is
+the normative contract: per-event payload schemas, the message key, the rule for
+monetary values, and the compatibility rules for evolving a payload.
+
+Producers derive `eventId` from the outbox row's primary key rather than generating a
+UUID at publish time. Republishing a row therefore reuses the same `eventId`, which is
+what makes the deduplication in §7.5 work at all — a fresh identifier per attempt would
+make every retry look like a new event.
+
 ### 7.3 Saga Flow (Choreography) — Happy Path
 
 ```mermaid
@@ -161,9 +170,9 @@ sequenceDiagram
 
     C->>GW: POST /api/v1/orders (JWT w/ tenant_id)
     GW->>OS: POST /api/v1/orders
-    OS->>IS: gRPC CheckStock (sync)
+    OS->>IS: gRPC CheckStock (sync, incl. quantity)
     IS-->>OS: OK
-    OS->>OS: Persist Order (CREATED) + Outbox row (same tx)
+    OS->>OS: Persist Order (PENDING) + Outbox row (same tx)
     OS->>K: orders.created
     K->>IS: orders.created
     IS->>IS: Reserve stock
@@ -268,7 +277,7 @@ None of these collide with MCNE (Postgres 5435, RabbitMQ 5672/15672, app 8081) o
 | Framework | Spring Boot 4.1.0 (Spring Framework 7.0.8) |
 | Cloud | Spring Cloud 2025.1.2 "Oakwood", Spring Cloud Gateway 5.0.1 |
 | Messaging | Apache Kafka (KRaft mode) |
-| Sync RPC | gRPC (Spring Boot 4.1 native support — verify current config against live docs at implementation time) |
+| Sync RPC | gRPC via `net.devh:grpc-{client,server}-spring-boot-starter` (see §16 for why, and the migration path to Spring's own gRPC support) |
 | Relational DB | PostgreSQL 16 |
 | NoSQL DB | MongoDB |
 | Cache | Redis |
@@ -288,8 +297,46 @@ None of these collide with MCNE (Postgres 5435, RabbitMQ 5672/15672, app 8081) o
 - Lambda calls Payment Service via internal REST instead of publishing to Kafka directly — avoids requiring MSK access from Lambda; noted as a scaling consideration.
 - Consider swapping the simulated payment provider for **real Stripe test-mode webhooks** — free, and exercises actual webhook signature verification and payload handling instead of a hand-rolled approximation.
 - Choreographed Saga instead of an orchestrator — intentional EDA-first choice; an orchestrated version (e.g., with a `SagaOrchestrator` state machine or Temporal) trades independence for centralized visibility, worth revisiting if the number of saga branches grows.
+- gRPC wired through the community `net.devh` starter rather than Spring's own gRPC support. The starter is mature and its `@GrpcService`/`@GrpcClient` model kept Phase 2 short, but it is built against Boot 3.x, so migrating to the Spring-native equivalent is an open item. Its `@GrpcClient` field injection is also the reason `GrpcInventoryClient` cannot be fully unit tested without reflection.
+- Monetary values travel as JSON numbers in Kafka events but as strings over gRPC. Protobuf has no decimal type, so a string is the only lossless option there; JSON numbers are lossless provided consumers bind them to `BigDecimal`. The rule is stated in `EVENTS.md` §4 rather than enforced by the format, which is a deliberate trade of guarantee for readability.
+- The Outbox poller waits for each broker acknowledgement inside the polling transaction. That is what prevents events being marked published when they were not, but it holds a database transaction open for the duration and the pending-events query is currently unbounded — a bounded page size is the natural next step before the outbox can hold a large backlog.
 
 ## 17. Implementation Status
+
+This section is the single source of truth for what exists today. Sections 1–16
+describe the **target design**: where they use the present tense, read it as the
+intended shape rather than a claim that the code is there. Anything not listed as
+completed below is still a plan.
+
+| Phase | Scope | Status |
+|---|---|---|
+| 0 | Monorepo, Docker Compose, base documentation | ✅ Done |
+| 1 | Order Service: Flyway, JPA, Outbox, REST, RFC 7807, tests | ✅ Done |
+| 2 | Inventory Service: MongoDB, gRPC contract + server + client | ✅ Done |
+| 3 | Outbox poller publishing to Kafka | ✅ Done |
+| 4 | Inventory: Kafka consumer, stock reservations, compensation | ⬜ Planned |
+| 5 | Payment Service: entities, Kafka consumer, webhook endpoint | ⬜ Planned |
+| 6 | Order: Saga reactions (CONFIRMED / CANCELLED) and compensation | ⬜ Planned |
+| 7 | API Gateway: routing, JWT validation, Redis rate limiting | ⬜ Planned |
+| 8 | Observability: Prometheus, Grafana, correlation IDs | ⬜ Planned |
+| 9 | Lambda: external payment webhook (Node.js) | ⬜ Planned |
+| 10 | Frontend: React + Vite, Saga timeline, tenant dashboard | ⬜ Planned |
+
+Consequences worth stating explicitly, because the design sections above describe
+their end state:
+
+- **No authentication or authorization anywhere yet** (Phase 7). `X-Tenant-Id` is
+  read straight from the request, so tenant isolation is currently enforced only by
+  the repository queries and is trivially bypassed by calling a service directly.
+  The multi-tenancy model in §8 and the Hibernate `@Filter` in §6 are not in place.
+- **No Kafka consumers yet** (Phases 4–6). `orders.created` is produced but nothing
+  reads it, so the Saga does not yet progress past order creation. The
+  `processed_events` dedup store of §7.5 is created by each service as it gains its
+  first listener.
+- **No metrics endpoint** (Phase 8). The Prometheus and Grafana containers start but
+  scrape nothing: Micrometer and Actuator are not wired, so the dashboards in §11
+  do not exist.
+- **Frontend is Vite scaffolding** (Phase 10), not the dashboard described in §13.
 
 ### ✅ Phase 0: Foundation
 - Monorepo structure, Maven reactor (`order-flow-parent`).

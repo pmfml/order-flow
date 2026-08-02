@@ -13,6 +13,9 @@ Guide to errors encountered during development and their solutions.
 4. [Spring Boot 4.1 — ObjectMapper bean not found (Jackson 3 migration)](#4-spring-boot-41--objectmapper-bean-not-found-jackson-3-migration)
 5. [Hibernate Validator — @Valid on container is deprecated](#5-hibernate-validator--valid-on-container-is-deprecated)
 6. [Spring Boot 4.1 — DataMongoTest package not found](#6-spring-boot-41--datamongotest-package-not-found)
+7. [Spring Boot 4.x — Flyway migrations never run with only flyway-core](#7-spring-boot-4x--flyway-migrations-never-run-with-only-flyway-core)
+8. [Spring Boot 4.0 — spring.data.mongodb.uri is silently ignored](#8-spring-boot-40--springdatamongodburi-is-silently-ignored)
+9. [Test application.properties shadows the main one instead of merging](#9-test-applicationproperties-shadows-the-main-one-instead-of-merging)
 
 ---
 
@@ -209,3 +212,178 @@ import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
 // ✅ After
 import org.springframework.boot.data.mongodb.test.autoconfigure.DataMongoTest;
 ```
+
+---
+
+## 7. Spring Boot 4.x — Flyway migrations never run with only flyway-core
+
+### Error
+
+No error. The application starts, and that is what makes this one costly.
+
+Flyway logs nothing, `flyway_schema_history` is never created, and the schema stays
+empty. The failure only becomes visible once something depends on the schema being
+there:
+
+```text
+Failed to initialize JPA EntityManagerFactory: Unable to build Hibernate SessionFactory
+nested exception is org.hibernate.tool.schema.spi.SchemaManagementException:
+Schema validation: missing table [order_items]
+```
+
+With `ddl-auto=update` or `create-drop` instead of `validate`, there is no symptom at
+all: Hibernate quietly generates the schema and the migrations are simply dead files.
+
+### Cause
+
+Spring Boot 4.x ships auto-configuration in dedicated modules rather than one large
+`spring-boot-autoconfigure` jar. `org.flywaydb:flyway-core` puts Flyway on the
+classpath but carries no `FlywayAutoConfiguration`, so nothing ever triggers the
+migration on startup.
+
+To confirm, check whether any jar on the classpath actually provides the class:
+
+```bash
+for j in $(find ~/.m2/repository/org/springframework/boot -name "*.jar"); do
+  unzip -l "$j" 2>/dev/null | grep -q "FlywayAutoConfiguration" && echo "FOUND: $j"
+done
+# no output means the auto-configuration is absent
+```
+
+### Solution
+
+Depend on the Boot module, which provides the auto-configuration and pulls
+`flyway-core` in transitively:
+
+```xml
+<!-- ❌ Before: Flyway on the classpath, but never executed -->
+<dependency>
+    <groupId>org.flywaydb</groupId>
+    <artifactId>flyway-core</artifactId>
+</dependency>
+
+<!-- ✅ After -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-flyway</artifactId>
+</dependency>
+```
+
+Keep `flyway-database-postgresql` at runtime scope for the PostgreSQL dialect.
+
+Then set `ddl-auto=validate` so Flyway owns the schema and Hibernate only asserts that
+the entities match it. That turns a silent divergence into a startup failure:
+
+```properties
+spring.jpa.hibernate.ddl-auto=validate
+spring.flyway.enabled=true
+spring.flyway.locations=classpath:db/migration
+```
+
+---
+
+## 8. Spring Boot 4.0 — spring.data.mongodb.uri is silently ignored
+
+### Error
+
+Again no startup error. The application connects to the *default* MongoDB address
+instead of the configured one, and only fails when a query runs:
+
+```text
+com.mongodb.MongoTimeoutException: Timed out while waiting for a server that matches
+ReadPreferenceServerSelector{readPreference=primary}. Client view of cluster state is
+{type=UNKNOWN, servers=[{address=localhost:27017, type=UNKNOWN, state=CONNECTING,
+exception={com.mongodb.MongoSocketOpenException: Exception opening socket},
+caused by {java.net.ConnectException: Connection refused}}]
+```
+
+The giveaway is the port: `27017` is the driver default, not the value configured in
+`application.properties`.
+
+### Cause
+
+`spring.data.mongodb.*` was deprecated in favour of `spring.mongodb.*` in Boot 4.0,
+at deprecation level **`error`**. Properties deprecated at that level are no longer
+bound at all — they are ignored rather than warned about, so the connection settings
+silently revert to their defaults.
+
+Tests do not catch this: `@ServiceConnection` supplies the container's connection
+details programmatically and never reads the property.
+
+### Solution
+
+```properties
+# ❌ Before: ignored, falls back to localhost:27017
+spring.data.mongodb.uri=mongodb://localhost:27018/orderflow
+
+# ✅ After
+spring.mongodb.uri=mongodb://localhost:27018/orderflow
+```
+
+The same rename applies to `host`, `port`, `database`, `username`, `password`,
+`authentication-database`, `replica-set-name` and `protocol`.
+
+Because this class of failure is invisible, it is worth validating every property key
+against the metadata Boot ships, rather than discovering them one at a time:
+
+```bash
+# Every configuration key Boot knows about, with deprecation level
+python3 - <<'PY'
+import json, zipfile
+from pathlib import Path
+for jar in (Path.home()/".m2/repository").rglob("spring-boot*.jar"):
+    try:
+        with zipfile.ZipFile(jar) as z:
+            if "META-INF/spring-configuration-metadata.json" not in z.namelist():
+                continue
+            data = json.loads(z.read("META-INF/spring-configuration-metadata.json"))
+    except Exception:
+        continue
+    for p in data.get("properties", []):
+        if p.get("deprecated"):
+            d = p.get("deprecation", {})
+            print(p["name"], "->", d.get("replacement"), "level=", d.get("level"))
+PY
+```
+
+---
+
+## 9. Test application.properties shadows the main one instead of merging
+
+### Error
+
+A bean fails to start in tests over a property that is plainly present in
+`src/main/resources/application.properties`:
+
+```text
+Caused by: org.springframework.util.PlaceholderResolutionException:
+Could not resolve placeholder 'orderflow.outbox.send-timeout-ms'
+in value "${orderflow.outbox.send-timeout-ms}"
+```
+
+### Cause
+
+`src/main/resources/application.properties` and
+`src/test/resources/application.properties` both resolve to the same classpath
+resource, `classpath:/application.properties`. The test classes directory comes first
+on the test classpath, so the test copy is the only one loaded. It does not merge with
+the main file, it replaces it.
+
+### Solution
+
+Repeat in the test file whatever the beans require. When only a couple of keys need to
+differ, prefer overriding them per test class so the main configuration stays in play:
+
+```java
+@SpringBootTest
+@TestPropertySource(properties = {
+        "spring.flyway.enabled=true",
+        "spring.jpa.hibernate.ddl-auto=validate"
+})
+class FlywayMigrationTest { }
+```
+
+Note that `spring.task.scheduling.enabled` does **not** exist, so it cannot be used to
+silence `@Scheduled` beans during tests. Either give the schedule an interval long
+enough never to fire, or move `@EnableScheduling` onto a `@Profile`-gated
+configuration class.
