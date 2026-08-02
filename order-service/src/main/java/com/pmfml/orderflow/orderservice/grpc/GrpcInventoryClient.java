@@ -3,9 +3,13 @@ package com.pmfml.orderflow.orderservice.grpc;
 import com.pmfml.orderflow.common.grpc.inventory.CheckStockRequest;
 import com.pmfml.orderflow.common.grpc.inventory.CheckStockResponse;
 import com.pmfml.orderflow.common.grpc.inventory.InventoryServiceGrpc;
+import com.pmfml.orderflow.orderservice.exceptions.InsufficientStockException;
+import com.pmfml.orderflow.orderservice.exceptions.InventoryUnavailableException;
+import com.pmfml.orderflow.orderservice.exceptions.ProductNotFoundException;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.client.inject.GrpcClient;
-import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -15,7 +19,6 @@ import java.math.BigDecimal;
  */
 @Slf4j
 @Service
-@Primary
 public class GrpcInventoryClient implements InventoryClient {
 
     @GrpcClient("inventory-service")
@@ -32,12 +35,15 @@ public class GrpcInventoryClient implements InventoryClient {
                 .setQuantity(quantity)
                 .build();
 
-        CheckStockResponse response = inventoryStub.checkStock(request);
+        CheckStockResponse response;
+        try {
+            response = inventoryStub.checkStock(request);
+        } catch (StatusRuntimeException e) {
+            throw translate(e, productId);
+        }
 
         if (!response.getAvailable()) {
-            throw new RuntimeException(
-                    "Insufficient stock for product %s: requested %d, available %d"
-                            .formatted(productId, quantity, response.getAvailableQuantity()));
+            throw new InsufficientStockException(productId, quantity, response.getAvailableQuantity());
         }
 
         return new ProductInfo(
@@ -45,5 +51,31 @@ public class GrpcInventoryClient implements InventoryClient {
                 response.getName(),
                 new BigDecimal(response.getPrice())
         );
+    }
+
+    /**
+     * Maps a gRPC status onto a domain exception.
+     *
+     * <p>Without this every remote failure surfaced identically as an opaque 500,
+     * so an unknown product and a downed Inventory Service were indistinguishable
+     * to the caller.
+     */
+    // Package-private so the mapping can be unit tested directly. The stub itself
+    // arrives through @GrpcClient field injection, which cannot be supplied from a
+    // test without reflection; moving it to constructor injection is a follow-up.
+    RuntimeException translate(StatusRuntimeException e, String productId) {
+        Status.Code code = e.getStatus().getCode();
+
+        return switch (code) {
+            case NOT_FOUND -> new ProductNotFoundException(productId, e);
+            case UNAVAILABLE, DEADLINE_EXCEEDED -> new InventoryUnavailableException(
+                    "Inventory Service did not answer the stock check for product %s"
+                            .formatted(productId), e);
+            // INVALID_ARGUMENT and anything else indicate a defect on this side
+            // (a malformed request we built), so they stay a server fault.
+            default -> new IllegalStateException(
+                    "Unexpected gRPC status %s from the stock check for product %s"
+                            .formatted(code, productId), e);
+        };
     }
 }

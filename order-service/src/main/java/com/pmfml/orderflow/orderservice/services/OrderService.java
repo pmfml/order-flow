@@ -4,6 +4,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import com.pmfml.orderflow.common.events.EventTypes;
 import com.pmfml.orderflow.orderservice.dtos.CreateOrderRequest;
+import com.pmfml.orderflow.orderservice.exceptions.OutboxSerializationException;
 import com.pmfml.orderflow.orderservice.dtos.OrderResponse;
 import com.pmfml.orderflow.orderservice.entities.Order;
 import com.pmfml.orderflow.orderservice.entities.OrderItem;
@@ -138,8 +139,8 @@ public class OrderService {
             log.debug("[Outbox] Wrote {} event: orderId={}", EventTypes.ORDER_CREATED, order.getId());
             
         } catch (JacksonException e) {
-            log.error("[Outbox] Failed to serialize order event payload: orderId={}", order.getId(), e);
-            throw new RuntimeException("Failed to serialize outbox event payload", e);
+            throw new OutboxSerializationException(
+                    "Failed to serialize outbox event payload for order %s".formatted(order.getId()), e);
         }
     }
 }
