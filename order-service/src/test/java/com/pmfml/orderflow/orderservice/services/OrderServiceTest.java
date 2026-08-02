@@ -84,9 +84,9 @@ class OrderServiceTest {
                 new OrderItemRequest("prod-2", 1)
         ));
 
-        given(inventoryClient.fetchProduct("prod-1", tenantId))
+        given(inventoryClient.fetchAvailableProduct("prod-1", 2, tenantId))
                 .willReturn(new InventoryClient.ProductInfo("prod-1", "Laptop", new BigDecimal("1000.00")));
-        given(inventoryClient.fetchProduct("prod-2", tenantId))
+        given(inventoryClient.fetchAvailableProduct("prod-2", 1, tenantId))
                 .willReturn(new InventoryClient.ProductInfo("prod-2", "Mouse", new BigDecimal("50.00")));
 
         // Mirror JPA semantics: save() returns the same managed instance, with an id
@@ -104,6 +104,11 @@ class OrderServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.totalAmount()).isEqualTo(new BigDecimal("2050.00"));
         assertThat(response.status()).isEqualTo(OrderStatus.PENDING);
+
+        // Each line's own quantity must reach the stock check, otherwise the
+        // Inventory Service cannot tell an order for 1 unit from one for 500.
+        verify(inventoryClient).fetchAvailableProduct("prod-1", 2, tenantId);
+        verify(inventoryClient).fetchAvailableProduct("prod-2", 1, tenantId);
 
         // Verify Order aggregate was built correctly
         verify(orderRepository).save(orderCaptor.capture());
@@ -133,9 +138,9 @@ class OrderServiceTest {
                 new OrderItemRequest("prod-2", 1)
         ));
 
-        given(inventoryClient.fetchProduct("prod-1", tenantId))
+        given(inventoryClient.fetchAvailableProduct("prod-1", 2, tenantId))
                 .willReturn(new InventoryClient.ProductInfo("prod-1", "Laptop", new BigDecimal("1000.00")));
-        given(inventoryClient.fetchProduct("prod-2", tenantId))
+        given(inventoryClient.fetchAvailableProduct("prod-2", 1, tenantId))
                 .willReturn(new InventoryClient.ProductInfo("prod-2", "Mouse", new BigDecimal("50.00")));
         given(orderRepository.save(any(Order.class))).willAnswer(invocation -> {
             Order toSave = invocation.getArgument(0);
@@ -181,7 +186,7 @@ class OrderServiceTest {
 
         CreateOrderRequest request = new CreateOrderRequest(List.of(new OrderItemRequest("prod-1", 1)));
 
-        given(inventoryClient.fetchProduct("prod-1", "tenant-1"))
+        given(inventoryClient.fetchAvailableProduct("prod-1", 1, "tenant-1"))
                 .willReturn(new InventoryClient.ProductInfo("prod-1", "A", BigDecimal.TEN));
 
         Order savedOrder = Order.builder()

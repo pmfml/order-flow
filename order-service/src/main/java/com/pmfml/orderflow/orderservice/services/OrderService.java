@@ -59,8 +59,10 @@ public class OrderService {
         BigDecimal totalAmount = BigDecimal.ZERO;
 
         for (var itemRequest : request.items()) {
-            // 1. Fetch authoritative product info (avoids trust in client prices)
-            InventoryClient.ProductInfo productInfo = inventoryClient.fetchProduct(itemRequest.productId(), tenantId);
+            // 1. Fetch authoritative product info and assert the requested quantity
+            //    is available (avoids trust in client prices and oversells)
+            InventoryClient.ProductInfo productInfo = inventoryClient.fetchAvailableProduct(
+                    itemRequest.productId(), itemRequest.quantity(), tenantId);
 
             // 2. Build the snapshot line item
             OrderItem orderItem = OrderItem.builder()

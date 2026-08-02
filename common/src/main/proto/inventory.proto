@@ -7,13 +7,19 @@ option java_package = "com.pmfml.orderflow.common.grpc.inventory";
 option java_outer_classname = "InventoryProto";
 
 service InventoryService {
-    // Synchronously checks stock availability and returns authoritative product info (name, price)
+    // Synchronously checks whether the requested quantity is available and returns
+    // authoritative product info (name, price)
     rpc CheckStock (CheckStockRequest) returns (CheckStockResponse);
 }
 
 message CheckStockRequest {
     string product_id = 1;
     string tenant_id = 2;
+    // Units the caller intends to order. Must be greater than zero; the server
+    // answers INVALID_ARGUMENT otherwise. Without it the server could only tell
+    // whether *any* stock existed, so an order for 500 units of a product with 1
+    // in stock would pass the check.
+    int32 quantity = 3;
 }
 
 message CheckStockResponse {
@@ -21,4 +27,7 @@ message CheckStockResponse {
     string product_id = 2;
     string name = 3;
     string price = 4; // Using string to preserve exact BigDecimal precision without floating point issues
+    // Units on hand at the time of the check. Populated whether or not the request
+    // could be satisfied, so callers can report how short they were.
+    int32 available_quantity = 5;
 }

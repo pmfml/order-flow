@@ -20,9 +20,29 @@ public class InventoryGrpcService extends InventoryServiceGrpc.InventoryServiceI
 
     private final ProductRepository productRepository;
 
+    /**
+     * Reports whether the requested quantity can be served from stock, along with
+     * the authoritative name and price.
+     *
+     * <p>This is a read-only pre-check, not a reservation: stock is only held when
+     * the Inventory Service consumes {@code orders.created}. Between this call and
+     * that reservation another order may consume the same units, so a positive
+     * answer here is an optimistic signal rather than a guarantee. The Saga's
+     * compensation path is what makes that safe.
+     */
     @Override
     public void checkStock(CheckStockRequest request, StreamObserver<CheckStockResponse> responseObserver) {
-        log.info("[gRPC] Received CheckStock for product '{}', tenant '{}'", request.getProductId(), request.getTenantId());
+        log.info("[gRPC] Received CheckStock for product '{}', tenant '{}', quantity {}",
+                request.getProductId(), request.getTenantId(), request.getQuantity());
+
+        if (request.getQuantity() <= 0) {
+            log.warn("[gRPC] Rejected CheckStock for product '{}': quantity {} is not positive",
+                    request.getProductId(), request.getQuantity());
+            responseObserver.onError(Status.INVALID_ARGUMENT
+                    .withDescription("quantity must be greater than zero")
+                    .asRuntimeException());
+            return;
+        }
 
         Optional<Product> productOpt = productRepository.findByIdAndTenantId(request.getProductId(), request.getTenantId());
 
@@ -35,13 +55,22 @@ public class InventoryGrpcService extends InventoryServiceGrpc.InventoryServiceI
         }
 
         Product product = productOpt.get();
-        boolean isAvailable = product.getStockQuantity() != null && product.getStockQuantity() > 0;
+        int onHand = product.getStockQuantity() == null ? 0 : product.getStockQuantity();
+
+        // Compare against the requested amount, not merely against zero.
+        boolean isAvailable = onHand >= request.getQuantity();
+
+        if (!isAvailable) {
+            log.info("[gRPC] Insufficient stock for product '{}': requested {}, on hand {}",
+                    product.getId(), request.getQuantity(), onHand);
+        }
 
         CheckStockResponse response = CheckStockResponse.newBuilder()
                 .setAvailable(isAvailable)
                 .setProductId(product.getId())
                 .setName(product.getName())
                 .setPrice(product.getPrice().toPlainString())
+                .setAvailableQuantity(onHand)
                 .build();
 
         responseObserver.onNext(response);

@@ -22,18 +22,22 @@ public class GrpcInventoryClient implements InventoryClient {
     private InventoryServiceGrpc.InventoryServiceBlockingStub inventoryStub;
 
     @Override
-    public ProductInfo fetchProduct(String productId, String tenantId) {
-        log.debug("[gRPC Client] Calling CheckStock for product '{}', tenant '{}'", productId, tenantId);
+    public ProductInfo fetchAvailableProduct(String productId, int quantity, String tenantId) {
+        log.debug("[gRPC Client] Calling CheckStock for product '{}', tenant '{}', quantity {}",
+                productId, quantity, tenantId);
 
         CheckStockRequest request = CheckStockRequest.newBuilder()
                 .setProductId(productId)
                 .setTenantId(tenantId)
+                .setQuantity(quantity)
                 .build();
 
         CheckStockResponse response = inventoryStub.checkStock(request);
 
         if (!response.getAvailable()) {
-            throw new RuntimeException("Product is out of stock or unavailable");
+            throw new RuntimeException(
+                    "Insufficient stock for product %s: requested %d, available %d"
+                            .formatted(productId, quantity, response.getAvailableQuantity()));
         }
 
         return new ProductInfo(
