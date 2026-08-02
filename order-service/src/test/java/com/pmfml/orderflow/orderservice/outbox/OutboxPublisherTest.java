@@ -50,9 +50,13 @@ class OutboxPublisherTest {
 
     private static final String TENANT_ID = "tenant-123";
 
+    /** Short on purpose: one test drives a future that never completes. */
+    private static final long SEND_TIMEOUT_MS = 200;
+
     @BeforeEach
     void setUp() {
-        outboxPublisher = new OutboxPublisher(outboxEventRepository, kafkaTemplate, objectMapper);
+        outboxPublisher = new OutboxPublisher(
+                outboxEventRepository, kafkaTemplate, objectMapper, SEND_TIMEOUT_MS);
     }
 
     @Test
@@ -154,6 +158,48 @@ class OutboxPublisherTest {
         // Then — no Kafka interaction
         verify(kafkaTemplate, never()).send(any(), any(), any());
         verify(outboxEventRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldNotMarkAsProcessedWhenKafkaFailsAsynchronously() {
+        // Given — the broker accepts the call but rejects the record afterwards,
+        // which is how most real publish failures surface: the send() call itself
+        // returns normally and only the future completes exceptionally.
+        OutboxEvent event = buildEvent(EventTypes.ORDER_CREATED);
+
+        given(outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc())
+                .willReturn(List.of(event));
+        given(kafkaTemplate.send(any(), any(), any()))
+                .willReturn(CompletableFuture.failedFuture(
+                        new RuntimeException("broker rejected the record")));
+
+        // When
+        outboxPublisher.pollAndPublish();
+
+        // Then — the event must stay pending so the next cycle retries it.
+        // Marking it processed here would drop the event permanently, defeating
+        // the guarantee the Outbox pattern exists to provide.
+        verify(outboxEventRepository, never()).save(any());
+        assertThat(event.getProcessedAt()).isNull();
+    }
+
+    @Test
+    void shouldNotMarkAsProcessedWhenKafkaSendNeverCompletes() {
+        // Given — a future that never completes, standing in for an unreachable
+        // or hung broker. The publisher must give up rather than block forever.
+        OutboxEvent event = buildEvent(EventTypes.ORDER_CREATED);
+
+        given(outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc())
+                .willReturn(List.of(event));
+        given(kafkaTemplate.send(any(), any(), any()))
+                .willReturn(new CompletableFuture<>());
+
+        // When
+        outboxPublisher.pollAndPublish();
+
+        // Then
+        verify(outboxEventRepository, never()).save(any());
+        assertThat(event.getProcessedAt()).isNull();
     }
 
     @Test

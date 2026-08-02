@@ -3,8 +3,8 @@ package com.pmfml.orderflow.orderservice.outbox;
 import com.pmfml.orderflow.common.events.EventEnvelope;
 import com.pmfml.orderflow.orderservice.entities.OutboxEvent;
 import com.pmfml.orderflow.orderservice.repositories.OutboxEventRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -15,6 +15,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Polls the outbox table for unprocessed events and publishes them to Kafka.
@@ -23,14 +24,25 @@ import java.util.Map;
  * The first half (writing the event in the same transaction as the domain change)
  * happens in {@link com.pmfml.orderflow.orderservice.services.OrderService}.
  *
- * <p><strong>At-least-once guarantee:</strong> if the application crashes after
- * publishing to Kafka but before marking the event as processed, the event will
- * be re-published on the next poll cycle. Downstream consumers must be
- * <strong>idempotent</strong> (e.g., via a {@code processed_events} table).
+ * <p><strong>At-least-once, never at-most-once:</strong> a row is marked processed
+ * only after the broker has acknowledged the record. The publisher therefore
+ * waits for each send to complete instead of firing and forgetting. If the
+ * application crashes between the acknowledgement and the commit, the event is
+ * re-published on the next cycle, so consumers must be <strong>idempotent</strong>
+ * by deduplicating on {@code eventId} (see {@code docs/EVENTS.md} §3).
+ *
+ * <p>The cost of waiting is bounded by {@code orderflow.outbox.send-timeout-ms};
+ * on timeout the row stays pending and is retried rather than silently dropped.
+ *
+ * <p><strong>Known limitation:</strong> a failed event does not hold back later
+ * events for the same aggregate, so if one event for an order fails while a
+ * subsequent one succeeds, consumers can observe them out of order. This cannot
+ * happen today because Order Service emits a single event type, but it becomes
+ * reachable in Phase 6 when {@code orders.confirmed} and {@code orders.cancelled}
+ * are added.
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class OutboxPublisher {
 
     private static final TypeReference<Map<String, Object>> PAYLOAD_TYPE =
@@ -40,6 +52,17 @@ public class OutboxPublisher {
     private final OutboxEventRepository outboxEventRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final long sendTimeoutMs;
+
+    public OutboxPublisher(OutboxEventRepository outboxEventRepository,
+                           KafkaTemplate<String, String> kafkaTemplate,
+                           ObjectMapper objectMapper,
+                           @Value("${orderflow.outbox.send-timeout-ms}") long sendTimeoutMs) {
+        this.outboxEventRepository = outboxEventRepository;
+        this.kafkaTemplate = kafkaTemplate;
+        this.objectMapper = objectMapper;
+        this.sendTimeoutMs = sendTimeoutMs;
+    }
 
     /**
      * Scheduled poller that runs at a fixed interval.
@@ -66,13 +89,12 @@ public class OutboxPublisher {
 
                 // The event type doubles as the topic name (§7.1), so no mapping is
                 // needed. Use aggregateId as the Kafka key to ensure ordering per order.
+                //
+                // Block until the broker acknowledges. send() only queues the record,
+                // so marking the row processed without waiting would discard events
+                // whose write failed after this call returned.
                 kafkaTemplate.send(event.getEventType(), event.getAggregateId().toString(), message)
-                        .whenComplete((result, ex) -> {
-                            if (ex != null) {
-                                log.error("[Outbox] Failed to publish event {} to Kafka",
-                                        event.getId(), ex);
-                            }
-                        });
+                        .get(sendTimeoutMs, TimeUnit.MILLISECONDS);
 
                 event.setProcessedAt(Instant.now());
                 outboxEventRepository.save(event);
@@ -80,9 +102,17 @@ public class OutboxPublisher {
                 log.debug("[Outbox] Published event: id={}, type={}, aggregateId={}",
                         event.getId(), event.getEventType(), event.getAggregateId());
 
+            } catch (InterruptedException e) {
+                // Restore the flag and abandon the cycle; remaining events stay
+                // pending and are picked up after restart.
+                Thread.currentThread().interrupt();
+                log.warn("[Outbox] Interrupted while publishing event {}; aborting this cycle",
+                        event.getId());
+                return;
+
             } catch (Exception e) {
-                log.error("[Outbox] Error processing event {}: {}",
-                        event.getId(), e.getMessage(), e);
+                log.error("[Outbox] Failed to publish event {} (type={}); will retry next cycle",
+                        event.getId(), event.getEventType(), e);
                 // Do NOT mark as processed — it will be retried on the next cycle
             }
         }
