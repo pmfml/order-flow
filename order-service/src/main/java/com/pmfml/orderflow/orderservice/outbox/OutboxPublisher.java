@@ -1,17 +1,20 @@
 package com.pmfml.orderflow.orderservice.outbox;
 
+import com.pmfml.orderflow.common.events.EventEnvelope;
 import com.pmfml.orderflow.orderservice.entities.OutboxEvent;
 import com.pmfml.orderflow.orderservice.repositories.OutboxEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Polls the outbox table for unprocessed events and publishes them to Kafka.
@@ -30,11 +33,13 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OutboxPublisher {
 
+    private static final TypeReference<Map<String, Object>> PAYLOAD_TYPE =
+            new TypeReference<>() {
+            };
+
     private final OutboxEventRepository outboxEventRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
-
-    @Value("${orderflow.outbox.topic}")
-    private String topic;
+    private final ObjectMapper objectMapper;
 
     /**
      * Scheduled poller that runs at a fixed interval.
@@ -57,8 +62,11 @@ public class OutboxPublisher {
 
         for (OutboxEvent event : pendingEvents) {
             try {
-                // Use aggregateId as the Kafka key to ensure ordering per order
-                kafkaTemplate.send(topic, event.getAggregateId().toString(), event.getPayload())
+                String message = objectMapper.writeValueAsString(toEnvelope(event));
+
+                // The event type doubles as the topic name (§7.1), so no mapping is
+                // needed. Use aggregateId as the Kafka key to ensure ordering per order.
+                kafkaTemplate.send(event.getEventType(), event.getAggregateId().toString(), message)
                         .whenComplete((result, ex) -> {
                             if (ex != null) {
                                 log.error("[Outbox] Failed to publish event {} to Kafka",
@@ -78,5 +86,28 @@ public class OutboxPublisher {
                 // Do NOT mark as processed — it will be retried on the next cycle
             }
         }
+    }
+
+    /**
+     * Wraps a stored outbox row in the canonical event envelope (§7.2).
+     *
+     * <p>Every envelope field is derived from the row itself, so republishing the
+     * same row always yields a byte-identical message. In particular
+     * {@code eventId} is the row's primary key, which is what allows consumers to
+     * deduplicate retries of the at-least-once delivery.
+     *
+     * <p>The stored payload is parsed back from its JSON string so it nests as a
+     * JSON object under {@code payload} instead of an escaped string literal. The
+     * cost is one parse per published event, which is negligible next to the
+     * network round trip.
+     */
+    private EventEnvelope toEnvelope(OutboxEvent event) {
+        return new EventEnvelope(
+                event.getId(),
+                event.getEventType(),
+                event.getTenantId(),
+                event.getCreatedAt(),
+                objectMapper.readValue(event.getPayload(), PAYLOAD_TYPE)
+        );
     }
 }

@@ -2,6 +2,7 @@ package com.pmfml.orderflow.orderservice.services;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
+import com.pmfml.orderflow.common.events.EventTypes;
 import com.pmfml.orderflow.orderservice.dtos.CreateOrderRequest;
 import com.pmfml.orderflow.orderservice.dtos.OrderResponse;
 import com.pmfml.orderflow.orderservice.entities.Order;
@@ -17,6 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -88,26 +91,49 @@ public class OrderService {
         return orderMapper.toResponse(savedOrder);
     }
 
+    /**
+     * Materializes an {@code orders.created} event in the outbox table.
+     *
+     * <p>Only the event-specific data is stored here. The envelope fields defined
+     * in §7.2 ({@code eventId}, {@code eventType}, {@code tenantId},
+     * {@code occurredAt}) are derived from this row's own columns when the poller
+     * publishes it, keeping the row the single source of truth.
+     *
+     * <p>Line items are part of the payload because the Inventory Service needs
+     * {@code productId} and {@code quantity} to reserve stock without calling
+     * back into this service.
+     */
     private void writeOutboxEvent(Order order) {
         try {
-            // Minimal event payload payload for Saga choreography.
-            // Other services only need to know this order exists and belongs to a tenant.
-            String payload = objectMapper.writeValueAsString(Map.of(
-                    "orderId", order.getId().toString(),
-                    "tenantId", order.getTenantId(),
-                    "status", order.getStatus().name(),
-                    "totalAmount", order.getTotalAmount()
-            ));
+            List<Map<String, Object>> items = order.getItems().stream()
+                    .map(item -> {
+                        Map<String, Object> line = new LinkedHashMap<>();
+                        line.put("productId", item.getProductId());
+                        line.put("quantity", item.getQuantity());
+                        line.put("unitPrice", item.getUnitPrice());
+                        return line;
+                    })
+                    .toList();
+
+            // LinkedHashMap keeps the serialized field order aligned with docs/EVENTS.md.
+            Map<String, Object> payloadData = new LinkedHashMap<>();
+            payloadData.put("orderId", order.getId().toString());
+            payloadData.put("status", order.getStatus().name());
+            payloadData.put("totalAmount", order.getTotalAmount());
+            payloadData.put("items", items);
+
+            String payload = objectMapper.writeValueAsString(payloadData);
 
             OutboxEvent event = OutboxEvent.builder()
                     .aggregateType("Order")
                     .aggregateId(order.getId())
-                    .eventType("orders.created")
+                    .tenantId(order.getTenantId())
+                    .eventType(EventTypes.ORDER_CREATED)
                     .payload(payload)
                     .build();
 
             outboxEventRepository.save(event);
-            log.debug("[Outbox] Wrote orders.created event: orderId={}", order.getId());
+            log.debug("[Outbox] Wrote {} event: orderId={}", EventTypes.ORDER_CREATED, order.getId());
             
         } catch (JacksonException e) {
             log.error("[Outbox] Failed to serialize order event payload: orderId={}", order.getId(), e);

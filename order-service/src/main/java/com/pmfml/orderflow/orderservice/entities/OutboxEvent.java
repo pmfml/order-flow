@@ -45,6 +45,13 @@ public class OutboxEvent {
     @Column(name = "aggregate_id", nullable = false)
     private UUID aggregateId;
 
+    /**
+     * Owning tenant, promoted to a column because the event envelope (§7.2)
+     * carries {@code tenantId} at the root level rather than inside the payload.
+     */
+    @Column(name = "tenant_id", nullable = false, length = 50)
+    private String tenantId;
+
     @Column(name = "event_type", nullable = false, length = 100)
     private String eventType;
 

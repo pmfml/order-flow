@@ -1,5 +1,6 @@
 package com.pmfml.orderflow.orderservice.repositories;
 
+import com.pmfml.orderflow.common.events.EventTypes;
 import com.pmfml.orderflow.orderservice.entities.OutboxEvent;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,14 +35,16 @@ class OutboxEventRepositoryTest {
         OutboxEvent unprocessed = OutboxEvent.builder()
                 .aggregateType("Order")
                 .aggregateId(UUID.randomUUID())
-                .eventType("OrderCreated")
+                .tenantId("tenant-123")
+                .eventType(EventTypes.ORDER_CREATED)
                 .payload("{\"orderId\": \"abc\"}")
                 .build();
 
         OutboxEvent processed = OutboxEvent.builder()
                 .aggregateType("Order")
                 .aggregateId(UUID.randomUUID())
-                .eventType("OrderCreated")
+                .tenantId("tenant-123")
+                .eventType(EventTypes.ORDER_CREATED)
                 .payload("{\"orderId\": \"def\"}")
                 .processedAt(Instant.now())
                 .build();
@@ -60,7 +63,8 @@ class OutboxEventRepositoryTest {
         OutboxEvent processed = OutboxEvent.builder()
                 .aggregateType("Order")
                 .aggregateId(UUID.randomUUID())
-                .eventType("OrderCreated")
+                .tenantId("tenant-123")
+                .eventType(EventTypes.ORDER_CREATED)
                 .payload("{}")
                 .processedAt(Instant.now())
                 .build();
