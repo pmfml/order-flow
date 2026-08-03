@@ -56,4 +56,7 @@ public class Product {
     
     @LastModifiedDate
     private Instant updatedAt;
+    
+    @org.springframework.data.annotation.Version
+    private Long version;
 }
