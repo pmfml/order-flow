@@ -361,6 +361,7 @@ their end state:
 ### ✅ Phase 3: Outbox Poller → Kafka
 - `OutboxPublisher` scheduled component polling `outbox_events` every 500ms.
 - Kafka producer publishing to `orders.created` topic with `aggregateId` as message key (per-order partition ordering).
-- At-least-once delivery: events remain unprocessed on Kafka failure and are retried on the next cycle.
+- **Phase 3 (Outbox Poller):** Refactored to polling with blocking ACKs for at-least-once delivery. Resilient to broker disconnections.
+- **Phase 4 (Inventory Consumer & Saga):** Implemented idempotent consumption of `orders.created` and `orders.cancelled`. Stock deduction using Optimistic Locking. Handled UUID representation quirks by using String IDs. DLT configured for unknown errors.
 - `@EnableScheduling` activated in `OrderServiceApplication`.
 - Full unit test coverage for happy path, empty outbox, Kafka failure, and batch processing.
