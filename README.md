@@ -24,9 +24,9 @@ Conceptually, OrderFlow is "fulfillment infrastructure as a service" — a simpl
 
 **Planned**
 
-- ⬜ **Choreographed Saga:** Order lifecycle spanning three independent services (Order, Inventory, Payment) coordinated entirely through Kafka events, with automatic compensation on failure — no central orchestrator as a single point of failure. *(Phases 4–6; `orders.created` is produced today, no consumer reads it yet.)*
-- ⬜ **Idempotent Consumers:** Every Kafka listener deduplicates via a `processed_events` table/collection, ensuring exactly-once-ish processing even on redelivery. The `eventId` that makes this possible is already on the wire. *(Phases 4–6)*
-- ⬜ **Dead Letter Topics:** Failed messages routed to `<topic>.DLT` after retry exhaustion, mirroring the DLQ pattern used in the sibling MCNE project (adapted from RabbitMQ to Kafka). *(Phases 4–6)*
+- ⬜ **Choreographed Saga:** Order lifecycle spanning three independent services (Order, Inventory, Payment) coordinated entirely through Kafka events, with automatic compensation on failure — no central orchestrator as a single point of failure. *(Phases 4–6; `orders.created` and `inventory.reserved` are fully consumed today. Final reactions arriving in Phase 6.)*
+- ✅ **Idempotent Consumers:** Every Kafka listener deduplicates via a `processed_events` table/collection, ensuring exactly-once-ish processing even on redelivery. The `eventId` that makes this possible is already on the wire. *(Implemented in Phases 4–5)*
+- ✅ **Dead Letter Topics:** Failed messages routed to `<topic>.DLT` after retry exhaustion, mirroring the DLQ pattern used in the sibling MCNE project (adapted from RabbitMQ to Kafka). *(Implemented in Phases 4–5)*
 - ⬜ **Multi-Tenancy:** JWT-based tenant isolation with row-level filtering (Hibernate `@Filter` for PostgreSQL, manual scoping with test enforcement for MongoDB). Tenant scoping exists in the repositories today, but the tenant is read from a request header and is not yet authenticated. *(Phase 7)*
 - ⬜ **Per-Tenant Rate Limiting:** Redis token-bucket rate limiting at the API Gateway, enforced per tenant plan (FREE / PRO). *(Phase 7)*
 - ⬜ **Full Observability:** Micrometer metrics exported to Prometheus, visualized in Grafana dashboards tracking saga completion rate, per-service p99 latency, Kafka consumer lag, and per-tenant order volume. *(Phase 8)*
@@ -186,8 +186,8 @@ taken from an `X-Tenant-Id` header, which any caller can set.
 
 | Method | Endpoint | Description | Status |
 | :--- | :--- | :--- | :--- |
-| **GET** | `/api/v1/payments/{orderId}` | Fetches payment status for an order | ⬜ Phase 5 |
-| **POST** | `/internal/v1/payment-webhook` | Internal: called by Lambda, shared-secret header | ⬜ Phase 5 |
+| **GET** | `/api/v1/payments/{orderId}` | Fetches payment status for an order | ⬜ Phase 9 |
+| **POST** | `/internal/v1/payment-webhook` | Internal: called by Lambda, shared-secret header | ⬜ Phase 9 |
 
 ### Error Responses
 

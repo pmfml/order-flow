@@ -363,5 +363,5 @@ their end state:
 - Kafka producer publishing to `orders.created` topic with `aggregateId` as message key (per-order partition ordering).
 - **Phase 3 (Outbox Poller):** Refactored to polling with blocking ACKs for at-least-once delivery. Resilient to broker disconnections.
 - **Phase 4 (Inventory Consumer & Saga):** Implemented idempotent consumption of `orders.created` and `orders.cancelled`. Stock deduction using Optimistic Locking. Handled UUID representation quirks by using String IDs. DLT configured for unknown errors.
-- `@EnableScheduling` activated in `OrderServiceApplication`.
+- **Phase 5 (Payment Service):** Bootstrapped with PostgreSQL and Flyway (`spring-boot-flyway` required for Boot 3.3/4.x). Idempotent listener for `inventory.reserved`. Integrated Stripe PaymentGateway (authorize-only). DLT configured. Full Testcontainers integration tests.- `@EnableScheduling` activated in `OrderServiceApplication`.
 - Full unit test coverage for happy path, empty outbox, Kafka failure, and batch processing.
