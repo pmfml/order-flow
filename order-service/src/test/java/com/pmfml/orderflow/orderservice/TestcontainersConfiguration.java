@@ -17,7 +17,7 @@ import org.testcontainers.utility.DockerImageName;
  * lose its point if it ran against a different major version.
  */
 @TestConfiguration(proxyBeanMethods = false)
-class TestcontainersConfiguration {
+public class TestcontainersConfiguration {
 
 	@Bean
 	@ServiceConnection
