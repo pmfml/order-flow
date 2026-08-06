@@ -57,8 +57,8 @@ topic mapping to keep in sync.
 | `payment.authorized` | Payment Service | Order Service | Phase 5 |
 | `payment.failed` | Payment Service | Order Service | Phase 5 |
 | `payment.captured` | Payment Service | Order Service | Phase 5 |
-| `orders.cancelled` | Order Service | Inventory Service | Phase 6 |
-| `orders.confirmed` | Order Service | audit / future consumers | Phase 6 |
+| `orders.cancelled` | Order Service | Inventory Service | Produced |
+| `orders.confirmed` | Order Service | audit / future consumers | Produced |
 
 ---
 
@@ -151,9 +151,53 @@ the Inventory Service can reserve stock without calling back.
 `items[].productName` is intentionally **not** published: it is a display-only
 snapshot held by Order Service and no consumer needs it.
 
+### `orders.confirmed`
+
+Produced by Order Service when a payment is authorized, finalizing the happy path of the Saga.
+
+```json
+{
+  "eventId": "9ef96733-9bfe-46f2-a80a-c1c4eaf99c93",
+  "eventType": "orders.confirmed",
+  "tenantId": "tenant-e2e",
+  "occurredAt": "2026-08-02T21:49:51.772866Z",
+  "payload": {
+    "orderId": "a387b12e-9bef-450d-b20a-ef370c07aa57",
+    "status": "CONFIRMED"
+  }
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `orderId` | UUID string | Same value as the Kafka message key. |
+| `status` | string | Always `CONFIRMED`. |
+
+### `orders.cancelled`
+
+Produced by Order Service as a compensating transaction when `inventory.reservation-failed` or `payment.failed` is received.
+
+```json
+{
+  "eventId": "9ef96733-9bfe-46f2-a80a-c1c4eaf99c93",
+  "eventType": "orders.cancelled",
+  "tenantId": "tenant-e2e",
+  "occurredAt": "2026-08-02T21:49:51.772866Z",
+  "payload": {
+    "orderId": "a387b12e-9bef-450d-b20a-ef370c07aa57",
+    "status": "CANCELLED"
+  }
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `orderId` | UUID string | Same value as the Kafka message key. |
+| `status` | string | Always `CANCELLED`. |
+
 ### Remaining events
 
-`inventory.*`, `payment.*`, `orders.confirmed` and `orders.cancelled` are
+`inventory.*` and `payment.*` are
 specified in the phase that introduces them (see §2). Their envelopes follow §1
 unchanged.
 

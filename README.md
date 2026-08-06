@@ -24,7 +24,7 @@ Conceptually, OrderFlow is "fulfillment infrastructure as a service" — a simpl
 
 **Planned**
 
-- ⬜ **Choreographed Saga:** Order lifecycle spanning three independent services (Order, Inventory, Payment) coordinated entirely through Kafka events, with automatic compensation on failure — no central orchestrator as a single point of failure. *(Phases 4–6; `orders.created` and `inventory.reserved` are fully consumed today. Final reactions arriving in Phase 6.)*
+- ✅ **Choreographed Saga:** Order lifecycle spanning three independent services (Order, Inventory, Payment) coordinated entirely through Kafka events, with automatic compensation on failure — no central orchestrator as a single point of failure. *(Phases 4–6; `orders.created`, `inventory.reserved`, `payment.authorized`, and failure events are fully consumed today. Final reactions are implemented in Phase 6.)*
 - ✅ **Idempotent Consumers:** Every Kafka listener deduplicates via a `processed_events` table/collection, ensuring exactly-once-ish processing even on redelivery. The `eventId` that makes this possible is already on the wire. *(Implemented in Phases 4–5)*
 - ✅ **Dead Letter Topics:** Failed messages routed to `<topic>.DLT` after retry exhaustion, mirroring the DLQ pattern used in the sibling MCNE project (adapted from RabbitMQ to Kafka). *(Implemented in Phases 4–5)*
 - ⬜ **Multi-Tenancy:** JWT-based tenant isolation with row-level filtering (Hibernate `@Filter` for PostgreSQL, manual scoping with test enforcement for MongoDB). Tenant scoping exists in the repositories today, but the tenant is read from a request header and is not yet authenticated. *(Phase 7)*
@@ -171,9 +171,9 @@ taken from an `X-Tenant-Id` header, which any caller can set.
 | Method | Endpoint | Description | Status |
 | :--- | :--- | :--- | :--- |
 | **POST** | `/api/v1/orders` | Creates an order (triggers the Saga) → `201 Created` | ✅ Built |
-| **GET** | `/api/v1/orders/{id}` | Fetches an order with current Saga status | ⬜ Phase 6 |
-| **GET** | `/api/v1/orders` | Lists orders for the authenticated tenant | ⬜ Phase 6 |
-| **POST** | `/api/v1/orders/{id}/cancel` | Explicit cancellation (business-intent endpoint) | ⬜ Phase 6 |
+| **GET** | `/api/v1/orders/{id}` | Fetches an order with current Saga status | ✅ Phase 6 |
+| **GET** | `/api/v1/orders` | Lists orders for the authenticated tenant | ✅ Phase 6 |
+| **POST** | `/api/v1/orders/{id}/cancel` | Explicit cancellation (business-intent endpoint) | ✅ Phase 6 |
 
 ### Inventory Endpoints
 

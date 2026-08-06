@@ -316,7 +316,7 @@ completed below is still a plan.
 | 3 | Outbox poller publishing to Kafka | ✅ Done |
 | 4 | Inventory: Kafka consumer, stock reservations, compensation | ⬜ Planned |
 | 5 | Payment Service: entities, Kafka consumer, webhook endpoint | ⬜ Planned |
-| 6 | Order: Saga reactions (CONFIRMED / CANCELLED) and compensation | ⬜ Planned |
+| 6 | Order: Saga reactions (CONFIRMED / CANCELLED) and compensation | ✅ Done |
 | 7 | API Gateway: routing, JWT validation, Redis rate limiting | ⬜ Planned |
 | 8 | Observability: Prometheus, Grafana, correlation IDs | ⬜ Planned |
 | 9 | Lambda: external payment webhook (Node.js) | ⬜ Planned |
@@ -329,8 +329,7 @@ their end state:
   read straight from the request, so tenant isolation is currently enforced only by
   the repository queries and is trivially bypassed by calling a service directly.
   The multi-tenancy model in §8 and the Hibernate `@Filter` in §6 are not in place.
-- **No Kafka consumers yet** (Phases 4–6). `orders.created` is produced but nothing
-  reads it, so the Saga does not yet progress past order creation. The
+- **No Kafka consumers yet** (Phase 4). `orders.created` is produced but the Inventory Service does not yet consume it. The Payment Service (Phase 5) and Order Service (Phase 6) consumers are implemented, but they depend on earlier phases in the Saga to trigger them. The
   `processed_events` dedup store of §7.5 is created by each service as it gains its
   first listener.
 - **No metrics endpoint** (Phase 8). The Prometheus and Grafana containers start but
@@ -366,3 +365,11 @@ their end state:
 - **Phase 5 (Payment Service):** Bootstrapped with PostgreSQL and Flyway (`spring-boot-flyway` required for Boot 3.3/4.x). Idempotent listener for `inventory.reserved`. Integrated Stripe PaymentGateway (authorize-only). DLT configured. Full Testcontainers integration tests.
 - `@EnableScheduling` activated in `OrderServiceApplication`.
 - Full unit test coverage for happy path, empty outbox, Kafka failure, and batch processing.
+
+### ✅ Phase 6: Order Service Saga Reactions
+- Migrated `orders` DB to include `processed_events` idempotency table.
+- Added business-intent state machine to `Order` (`confirm()`, `cancel()`) removing public setter.
+- `SagaReactionService` with Transactional Outbox for compensating events (`orders.confirmed`, `orders.cancelled`).
+- Kafka consumer config with `DefaultErrorHandler` and DLT.
+- `PaymentEventConsumer` and `InventoryEventConsumer`.
+- Integration tests using Testcontainers (Kafka + PostgreSQL).
