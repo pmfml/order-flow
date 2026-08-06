@@ -91,9 +91,11 @@ class OrderServiceTest {
 
         // Mirror JPA semantics: save() returns the same managed instance, with an id
         // assigned. Returning a detached stub would hide the items from the payload.
+        // Order.id has no public setter (it is JPA-generated), so we simulate
+        // the persistence layer assigning it via reflection.
         given(orderRepository.save(any(Order.class))).willAnswer(invocation -> {
             Order toSave = invocation.getArgument(0);
-            toSave.setId(assignedId);
+            setIdViaReflection(toSave, assignedId);
             return toSave;
         });
 
@@ -144,7 +146,7 @@ class OrderServiceTest {
                 .willReturn(new InventoryClient.ProductInfo("prod-2", "Mouse", new BigDecimal("50.00")));
         given(orderRepository.save(any(Order.class))).willAnswer(invocation -> {
             Order toSave = invocation.getArgument(0);
-            toSave.setId(assignedId);
+            setIdViaReflection(toSave, assignedId);
             return toSave;
         });
 
@@ -207,5 +209,22 @@ class OrderServiceTest {
 
         // Order is "saved" in memory, but because the method throws a RuntimeException,
         // the @Transactional proxy will roll back the physical database transaction.
+    }
+
+    /**
+     * Sets the {@code id} field on an {@link Order} via reflection.
+     *
+     * <p>The field is JPA-generated ({@code GenerationType.UUID}) and intentionally
+     * has no public setter. In tests we need to simulate what JPA does internally
+     * when {@code save()} assigns the identifier.
+     */
+    private static void setIdViaReflection(Order order, UUID id) {
+        try {
+            java.lang.reflect.Field field = Order.class.getDeclaredField("id");
+            field.setAccessible(true);
+            field.set(order, id);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

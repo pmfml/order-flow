@@ -30,11 +30,20 @@ import java.util.UUID;
  *
  * <p>An Order starts as {@link OrderStatus#PENDING} and transitions to
  * {@code CONFIRMED} or {@code CANCELLED} based on the choreographed Saga outcome.
+ *
+ * <p><strong>State machine:</strong> only two transitions are valid:
+ * <ul>
+ *     <li>{@code PENDING → CONFIRMED} — via {@link #confirm()}</li>
+ *     <li>{@code PENDING → CANCELLED} — via {@link #cancel()}</li>
+ * </ul>
+ * Any other transition throws {@link IllegalStateException}. There is no
+ * public setter on {@code status}; all mutations go through these
+ * business-intent methods so that out-of-order Saga events cannot corrupt
+ * the lifecycle.
  */
 @Entity
 @Table(name = "orders")
 @Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -51,6 +60,7 @@ public class Order {
     @Column(nullable = false, length = 30)
     private OrderStatus status;
 
+    @Setter
     @Column(name = "total_amount", nullable = false, precision = 19, scale = 2)
     private BigDecimal totalAmount;
 
@@ -67,6 +77,26 @@ public class Order {
     private Instant updatedAt;
 
     /**
+     * Transitions this order to {@link OrderStatus#CONFIRMED}.
+     *
+     * @throws IllegalStateException if the current status is not {@code PENDING}
+     */
+    public void confirm() {
+        assertPending("confirm");
+        this.status = OrderStatus.CONFIRMED;
+    }
+
+    /**
+     * Transitions this order to {@link OrderStatus#CANCELLED}.
+     *
+     * @throws IllegalStateException if the current status is not {@code PENDING}
+     */
+    public void cancel() {
+        assertPending("cancel");
+        this.status = OrderStatus.CANCELLED;
+    }
+
+    /**
      * Adds an item to this order and sets the bidirectional relationship.
      *
      * @param item the order item to add
@@ -74,5 +104,13 @@ public class Order {
     public void addItem(OrderItem item) {
         items.add(item);
         item.setOrder(this);
+    }
+
+    private void assertPending(String action) {
+        if (this.status != OrderStatus.PENDING) {
+            throw new IllegalStateException(
+                    "Cannot %s order %s: current status is %s, expected PENDING"
+                            .formatted(action, id, status));
+        }
     }
 }
