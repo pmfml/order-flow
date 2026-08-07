@@ -8,30 +8,39 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.annotation.Import;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockJwt;
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.springSecurity;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
         "logging.level.org.springframework.cloud.gateway=TRACE"
     })
 @ActiveProfiles("test")
-@Import(TestSecurityConfig.class)
 class RoutingIntegrationTest {
 
     @LocalServerPort
     private int port;
 
+    @Autowired
+    private ApplicationContext context;
+
     private WebTestClient webClient;
 
     @BeforeEach
     void setUp() {
-        webClient = WebTestClient.bindToServer().baseUrl("http://localhost:" + port).build();
+        webClient = WebTestClient.bindToApplicationContext(context)
+                .apply(springSecurity())
+                .configureClient()
+                .baseUrl("http://localhost:" + port)
+                .build();
     }
 
     private static WireMockServer wireMockServer;
@@ -68,7 +77,9 @@ class RoutingIntegrationTest {
                         .withBody("{\"id\": \"123\"}")));
 
         // Act & Assert
-        webClient.post()
+        webClient
+                .mutateWith(mockJwt())
+                .post()
                 .uri("/api/v1/orders/123")
                 .exchange()
                 .expectStatus().isCreated()
@@ -86,7 +97,9 @@ class RoutingIntegrationTest {
                         .withBody("{\"sku\": \"prod-1\"}")));
 
         // Act & Assert
-        webClient.get()
+        webClient
+                .mutateWith(mockJwt())
+                .get()
                 .uri("/api/v1/products/prod-1")
                 .exchange()
                 .expectStatus().isOk()
@@ -104,7 +117,9 @@ class RoutingIntegrationTest {
                         .withBody("{\"status\": \"AUTHORIZED\"}")));
 
         // Act & Assert
-        webClient.get()
+        webClient
+                .mutateWith(mockJwt())
+                .get()
                 .uri("/api/v1/payments/ord-1")
                 .exchange()
                 .expectStatus().isOk()
@@ -115,7 +130,9 @@ class RoutingIntegrationTest {
     @Test
     void shouldReturn404ForUnknownRoutes() {
         // Act & Assert
-        webClient.get()
+        webClient
+                .mutateWith(mockJwt())
+                .get()
                 .uri("/api/v1/unknown")
                 .exchange()
                 .expectStatus().isNotFound();

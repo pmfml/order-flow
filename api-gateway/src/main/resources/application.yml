@@ -8,8 +8,13 @@ spring:
     gateway:
       routes: []
 
-  autoconfigure:
-    exclude: org.springframework.boot.autoconfigure.security.reactive.ReactiveSecurityAutoConfiguration,org.springframework.boot.autoconfigure.security.oauth2.resource.reactive.ReactiveOAuth2ResourceServerAutoConfiguration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # In development, we rely on a minimal local issuer (Step 7.3) or bypass via mocks in tests.
+          # For production, this will point to GateKeeper's real issuer URI.
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8090}
 
 # --- Logging ---
 logging:
