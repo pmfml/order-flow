@@ -65,6 +65,8 @@ class RoutingIntegrationTest {
         registry.add("ORDER_SERVICE_URL", () -> url);
         registry.add("INVENTORY_SERVICE_URL", () -> url);
         registry.add("PAYMENT_SERVICE_URL", () -> url);
+        registry.add("JWT_ISSUER_URI", () -> "http://localhost:9999");
+        registry.add("JWT_JWK_SET_URI", () -> "http://localhost:9999/jwks");
     }
 
     @Test

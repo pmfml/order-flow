@@ -12,9 +12,10 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          # In development, we rely on a minimal local issuer (Step 7.3) or bypass via mocks in tests.
-          # For production, this will point to GateKeeper's real issuer URI.
-          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8090}
+          # Points to the mock-oauth2-server (docker-compose) in development.
+          # For production, override via environment variables to the real provider.
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8099/orderflow}
+          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8099/orderflow/jwks}
 
 # --- Logging ---
 logging:
