@@ -27,8 +27,8 @@ Conceptually, OrderFlow is "fulfillment infrastructure as a service" — a simpl
 - ✅ **Choreographed Saga:** Order lifecycle spanning three independent services (Order, Inventory, Payment) coordinated entirely through Kafka events, with automatic compensation on failure — no central orchestrator as a single point of failure. *(Phases 4–6; `orders.created`, `inventory.reserved`, `payment.authorized`, and failure events are fully consumed today. Final reactions are implemented in Phase 6.)*
 - ✅ **Idempotent Consumers:** Every Kafka listener deduplicates via a `processed_events` table/collection, ensuring exactly-once-ish processing even on redelivery. The `eventId` that makes this possible is already on the wire. *(Implemented in Phases 4–5)*
 - ✅ **Dead Letter Topics:** Failed messages routed to `<topic>.DLT` after retry exhaustion, mirroring the DLQ pattern used in the sibling MCNE project (adapted from RabbitMQ to Kafka). *(Implemented in Phases 4–5)*
-- ⬜ **Multi-Tenancy:** JWT-based tenant isolation with row-level filtering (Hibernate `@Filter` for PostgreSQL, manual scoping with test enforcement for MongoDB). Tenant scoping exists in the repositories today, but the tenant is read from a request header and is not yet authenticated. *(Phase 7)*
-- ⬜ **Per-Tenant Rate Limiting:** Redis token-bucket rate limiting at the API Gateway, enforced per tenant plan (FREE / PRO). *(Phase 7)*
+- ✅ **Multi-Tenancy:** JWT-based tenant isolation with row-level filtering (Hibernate `@Filter` for PostgreSQL, manual scoping with test enforcement for MongoDB). Tenant scoping is enforced by extracting the `tenant_id` claim from the JWT at the API Gateway and forwarding it securely via the `X-Tenant-Id` header. *(Implemented in Phase 7)*
+- ✅ **Per-Tenant Rate Limiting:** Redis token-bucket rate limiting at the API Gateway, enforced per tenant based on their plan limits. *(Implemented in Phase 7)*
 - ⬜ **Full Observability:** Micrometer metrics exported to Prometheus, visualized in Grafana dashboards tracking saga completion rate, per-service p99 latency, Kafka consumer lag, and per-tenant order volume. *(Phase 8)*
 - ⬜ **Serverless Webhook Ingestion:** AWS Lambda (Node.js) receiving external payment provider webhooks — bursty, stateless, cold-start-tolerant traffic handled outside the JVM services. *(Phase 9)*
 - ⬜ **Tenant Dashboard:** React + Vite frontend with live order list, saga timeline visualization per order, and plan usage indicators. *(Phase 10)*
@@ -118,7 +118,8 @@ cp .env.example .env
 | `SERVER_PORT` | Overrides a service's HTTP port | per service, see below |
 | `GRAFANA_ADMIN_PASSWORD` | Grafana admin password | `admin` |
 | `REDIS_HOST` / `REDIS_PORT` | Redis connection _(Phase 7)_ | `localhost` / `6379` |
-| `JWT_ISSUER_URI` | OAuth2 issuer URI _(Phase 7)_ | `http://localhost:8090/issuer` |
+| `JWT_ISSUER_URI` | OAuth2 issuer URI (points to mock server in dev) _(Phase 7)_ | `http://localhost:8099/orderflow` |
+| `JWT_JWK_SET_URI` | OAuth2 JWK Set URI _(Phase 7)_ | `http://localhost:8099/orderflow/jwks` |
 | `INTERNAL_API_KEY` | Shared secret for Lambda → Payment Service _(Phase 9)_ | _(unset)_ |
 | `PAYMENT_WEBHOOK_SECRET` | Webhook signature validation secret _(Phase 9)_ | _(unset)_ |
 

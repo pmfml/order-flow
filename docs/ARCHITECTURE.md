@@ -317,7 +317,7 @@ completed below is still a plan.
 | 4 | Inventory: Kafka consumer, stock reservations, compensation | ⬜ Planned |
 | 5 | Payment Service: entities, Kafka consumer, webhook endpoint | ⬜ Planned |
 | 6 | Order: Saga reactions (CONFIRMED / CANCELLED) and compensation | ✅ Done |
-| 7 | API Gateway: routing, JWT validation, Redis rate limiting | ⬜ Planned |
+| 7 | API Gateway: routing, JWT validation, Redis rate limiting | ✅ Done |
 | 8 | Observability: Prometheus, Grafana, correlation IDs | ⬜ Planned |
 | 9 | Lambda: external payment webhook (Node.js) | ⬜ Planned |
 | 10 | Frontend: React + Vite, Saga timeline, tenant dashboard | ⬜ Planned |
@@ -373,3 +373,10 @@ their end state:
 - Kafka consumer config with `DefaultErrorHandler` and DLT.
 - `PaymentEventConsumer` and `InventoryEventConsumer`.
 - Integration tests using Testcontainers (Kafka + PostgreSQL).
+
+### ✅ Phase 7: API Gateway
+- Spring Cloud Gateway configuration mapping `/api/v1/orders|products|payments` to internal services, stripping the prefix before forwarding.
+- Security enabled via OAuth2 Resource Server validating JWTs. Included `navikt/mock-oauth2-server` in Docker Compose for local token generation and JWKS validation.
+- `TenantHeaderFilter` (GlobalFilter) extracting `tenant_id` and `sub` claims from JWTs and injecting them as `X-Tenant-Id` and `X-User-Id` downstream headers.
+- Per-tenant rate limiting leveraging Redis (`token bucket` algorithm) via `RequestRateLimiter` and a custom `KeyResolver`.
+- Automated integration tests bypassing actual Redis and Auth dependencies via Mockito (`@MockitoBean`) and WireMock (`mockJwt()`).
