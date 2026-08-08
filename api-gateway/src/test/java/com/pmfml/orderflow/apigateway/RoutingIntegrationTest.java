@@ -14,10 +14,17 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.cloud.gateway.filter.ratelimit.RateLimiter;
+
+import java.util.Map;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockJwt;
 import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.springSecurity;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import reactor.core.publisher.Mono;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
@@ -34,8 +41,13 @@ class RoutingIntegrationTest {
 
     private WebTestClient webClient;
 
+    @MockitoBean
+    private RateLimiter customRedisRateLimiter;
+
     @BeforeEach
     void setUp() {
+        when(customRedisRateLimiter.isAllowed(any(), any())).thenReturn(Mono.just(new org.springframework.cloud.gateway.filter.ratelimit.RateLimiter.Response(true, Map.of())));
+        
         webClient = WebTestClient.bindToApplicationContext(context)
                 .apply(springSecurity())
                 .configureClient()
