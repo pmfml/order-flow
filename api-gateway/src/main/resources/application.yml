@@ -8,6 +8,11 @@ spring:
     gateway:
       routes: []
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
   security:
     oauth2:
       resourceserver:
@@ -16,6 +21,11 @@ spring:
           # For production, override via environment variables to the real provider.
           issuer-uri: ${JWT_ISSUER_URI:http://localhost:8099/orderflow}
           jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8099/orderflow/jwks}
+
+app:
+  rate-limit:
+    replenish-rate: ${RATE_LIMIT_REPLENISH:10}
+    burst-capacity: ${RATE_LIMIT_BURST:20}
 
 # --- Logging ---
 logging:
