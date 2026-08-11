@@ -318,7 +318,7 @@ completed below is still a plan.
 | 5 | Payment Service: entities, Kafka consumer, webhook endpoint | ⬜ Planned |
 | 6 | Order: Saga reactions (CONFIRMED / CANCELLED) and compensation | ✅ Done |
 | 7 | API Gateway: routing, JWT validation, Redis rate limiting | ✅ Done |
-| 8 | Observability: Prometheus, Grafana, correlation IDs | ⬜ Planned |
+| 8 | Observability: Prometheus, Grafana, correlation IDs | ✅ Done |
 | 9 | Lambda: external payment webhook (Node.js) | ⬜ Planned |
 | 10 | Frontend: React + Vite, Saga timeline, tenant dashboard | ⬜ Planned |
 
@@ -380,3 +380,9 @@ their end state:
 - `TenantHeaderFilter` (GlobalFilter) extracting `tenant_id` and `sub` claims from JWTs and injecting them as `X-Tenant-Id` and `X-User-Id` downstream headers.
 - Per-tenant rate limiting leveraging Redis (`token bucket` algorithm) via `RequestRateLimiter` and a custom `KeyResolver`.
 - Automated integration tests bypassing actual Redis and Auth dependencies via Mockito (`@MockitoBean`) and WireMock (`mockJwt()`).
+
+### ✅ Phase 8: Observability
+- Integration of `spring-boot-starter-actuator` across all microservices to expose operational metrics at `/actuator/prometheus`.
+- Integration of `micrometer-registry-prometheus` for metrics format translation and `micrometer-tracing-bridge-brave` for Distributed Tracing (generating and propagating `traceId` and `spanId` across HTTP and Kafka bounds).
+- Local infrastructure augmented with Prometheus configured to dynamically scrape host ports via `host.docker.internal:host-gateway`.
+- Grafana provisioned with auto-configured Prometheus datasource (`datasource.yml`) for immediate dashboard readiness without manual UI setup.

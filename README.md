@@ -29,7 +29,7 @@ Conceptually, OrderFlow is "fulfillment infrastructure as a service" — a simpl
 - ✅ **Dead Letter Topics:** Failed messages routed to `<topic>.DLT` after retry exhaustion, mirroring the DLQ pattern used in the sibling MCNE project (adapted from RabbitMQ to Kafka). *(Implemented in Phases 4–5)*
 - ✅ **Multi-Tenancy:** JWT-based tenant isolation with row-level filtering (Hibernate `@Filter` for PostgreSQL, manual scoping with test enforcement for MongoDB). Tenant scoping is enforced by extracting the `tenant_id` claim from the JWT at the API Gateway and forwarding it securely via the `X-Tenant-Id` header. *(Implemented in Phase 7)*
 - ✅ **Per-Tenant Rate Limiting:** Redis token-bucket rate limiting at the API Gateway, enforced per tenant based on their plan limits. *(Implemented in Phase 7)*
-- ⬜ **Full Observability:** Micrometer metrics exported to Prometheus, visualized in Grafana dashboards tracking saga completion rate, per-service p99 latency, Kafka consumer lag, and per-tenant order volume. *(Phase 8)*
+- ✅ **Full Observability:** Micrometer metrics exported to Prometheus, enabling Grafana dashboards to track saga completion rates, per-service p99 latency, Kafka consumer lag, and per-tenant order volume. Additionally, Distributed Tracing (Brave) propagates `traceId` across HTTP and Kafka boundaries for comprehensive logging correlation. *(Implemented in Phase 8)*
 - ⬜ **Serverless Webhook Ingestion:** AWS Lambda (Node.js) receiving external payment provider webhooks — bursty, stateless, cold-start-tolerant traffic handled outside the JVM services. *(Phase 9)*
 - ⬜ **Tenant Dashboard:** React + Vite frontend with live order list, saga timeline visualization per order, and plan usage indicators. *(Phase 10)*
 
