@@ -101,6 +101,32 @@ public class PaymentService {
         publishOutcome(orderId, tenantId, outcomeType, result);
     }
 
+    @Transactional
+    public void handleWebhook(com.pmfml.orderflow.paymentservice.controllers.WebhookPayload payload) {
+        log.info("[Payment] Processing webhook for order {}: status {}", payload.getOrderId(), payload.getStatus());
+
+        // Find the payment transaction
+        UUID orderId = UUID.fromString(payload.getOrderId());
+        PaymentTransaction tx = paymentTransactionRepository.findByOrderIdAndTenantId(orderId, payload.getTenantId())
+                .orElseThrow(() -> new IllegalArgumentException("Payment not found for order " + payload.getOrderId()));
+
+        // Update status if it's CAPTURED
+        if ("CAPTURED".equals(payload.getStatus())) {
+            tx.setStatus(PaymentStatus.CAPTURED);
+        } else if ("FAILED".equals(payload.getStatus())) {
+            tx.setStatus(PaymentStatus.FAILED);
+        }
+        
+        paymentTransactionRepository.save(tx);
+
+        // Publish event (no idempotency check here since webhook provider usually retries and we can just re-publish or check status)
+        String outcomeType = "CAPTURED".equals(payload.getStatus()) ? EventTypes.PAYMENT_CAPTURED : EventTypes.PAYMENT_FAILED;
+        
+        // Use a dummy PaymentResult for the publish method signature
+        PaymentResult result = new PaymentResult("CAPTURED".equals(payload.getStatus()), tx.getStripePaymentIntentId(), null);
+        publishOutcome(payload.getOrderId(), tx.getTenantId(), outcomeType, result);
+    }
+
     private BigDecimal extractAmount(EventEnvelope event) {
         Object raw = event.payload().get("totalAmount");
         if (raw instanceof Number number) {
