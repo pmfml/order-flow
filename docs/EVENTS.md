@@ -195,9 +195,33 @@ Produced by Order Service as a compensating transaction when `inventory.reservat
 | `orderId` | UUID string | Same value as the Kafka message key. |
 | `status` | string | Always `CANCELLED`. |
 
+### `payment.captured`
+
+Produced by Payment Service when the AWS Lambda webhook confirms that the external
+provider (Stripe) has successfully captured the payment. This is the final step
+in the payment lifecycle.
+
+```json
+{
+  "eventId": "a0cc1b4e-3c2f-4e81-a6b2-0f9a8c7d5e3a",
+  "eventType": "payment.captured",
+  "tenantId": "tenant-e2e",
+  "occurredAt": "2026-08-12T15:30:00.000Z",
+  "payload": {
+    "orderId": "a387b12e-9bef-450d-b20a-ef370c07aa57",
+    "paymentIntentId": "pi_3QhFKJL2A..."
+  }
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `orderId` | UUID string | Same value as the Kafka message key. |
+| `paymentIntentId` | string | Stripe PaymentIntent ID. May be null if the provider doesn't return one. |
+
 ### Remaining events
 
-`inventory.*` and `payment.*` are
+`inventory.*` and other `payment.*` events (`payment.authorized`, `payment.failed`) are
 specified in the phase that introduces them (see §2). Their envelopes follow §1
 unchanged.
 

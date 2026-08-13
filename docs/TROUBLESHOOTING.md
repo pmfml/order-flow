@@ -16,6 +16,7 @@ Guide to errors encountered during development and their solutions.
 7. [Spring Boot 4.x — Flyway migrations never run with only flyway-core](#7-spring-boot-4x--flyway-migrations-never-run-with-only-flyway-core)
 8. [Spring Boot 4.0 — spring.data.mongodb.uri is silently ignored](#8-spring-boot-40--springdatamongodburi-is-silently-ignored)
 9. [Test application.properties shadows the main one instead of merging](#9-test-applicationproperties-shadows-the-main-one-instead-of-merging)
+10. [Spring Boot 3.4+ — @MockBean deprecated in favour of @MockitoBean](#10-spring-boot-34--mockbean-deprecated-in-favour-of-mockitobean)
 
 ---
 
@@ -387,3 +388,51 @@ Note that `spring.task.scheduling.enabled` does **not** exist, so it cannot be u
 silence `@Scheduled` beans during tests. Either give the schedule an interval long
 enough never to fire, or move `@EnableScheduling` onto a `@Profile`-gated
 configuration class.
+
+---
+
+## 10. Spring Boot 3.4+ — @MockBean deprecated in favour of @MockitoBean
+
+### Error
+
+```text
+warning: [removal] MockBean in org.springframework.boot.test.mock.mockito has been deprecated
+```
+
+or at runtime with Spring Boot 4.x:
+
+```text
+package org.springframework.boot.test.mock.mockito does not exist
+```
+
+### Cause
+
+Starting in Spring Boot 3.4, the `@MockBean` and `@SpyBean` annotations from
+`org.springframework.boot.test.mock.mockito` were deprecated. In Spring Boot 4.x, the
+old package was removed entirely. The replacement annotations live in a new package and
+have different bean-matching semantics.
+
+### Solution
+
+Update imports and annotations:
+
+```java
+// ❌ Before
+import org.springframework.boot.test.mock.mockito.MockBean;
+
+@MockBean
+private RateLimiter rateLimiter;
+
+// ✅ After
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+@MockitoBean
+private RateLimiter rateLimiter;
+```
+
+Key differences to be aware of:
+- `@MockitoBean` matches beans **by name** (the field name must match the bean name
+  in the application context), whereas `@MockBean` matched by type.
+- If your bean is registered with a specific name (e.g., `customRedisRateLimiter`),
+  your test field must use the same name.
+
