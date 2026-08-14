@@ -44,6 +44,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final String TYPE_BAD_REQUEST = "bad-request";
     private static final String TYPE_NOT_FOUND = "product-not-found";
+    private static final String TYPE_ORDER_NOT_FOUND = "order-not-found";
     private static final String TYPE_INSUFFICIENT_STOCK = "insufficient-stock";
     private static final String TYPE_SERVICE_UNAVAILABLE = "inventory-unavailable";
     private static final String TYPE_INTERNAL_ERROR = "internal-server-error";
@@ -59,6 +60,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problemDetail = problem(HttpStatus.NOT_FOUND, TYPE_NOT_FOUND,
                 "Product Not Found", ex.getMessage());
         problemDetail.setProperty("productId", ex.getProductId());
+        return problemDetail;
+    }
+
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ProblemDetail handleOrderNotFound(OrderNotFoundException ex) {
+        log.warn("[REST] Order not found: orderId={}", ex.getOrderId());
+
+        ProblemDetail problemDetail = problem(HttpStatus.NOT_FOUND, TYPE_ORDER_NOT_FOUND,
+                "Order Not Found", ex.getMessage());
+        problemDetail.setProperty("orderId", ex.getOrderId().toString());
         return problemDetail;
     }
 

@@ -4,6 +4,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import com.pmfml.orderflow.common.events.EventTypes;
 import com.pmfml.orderflow.orderservice.dtos.CreateOrderRequest;
+import com.pmfml.orderflow.orderservice.exceptions.OrderNotFoundException;
 import com.pmfml.orderflow.orderservice.exceptions.OutboxSerializationException;
 import com.pmfml.orderflow.orderservice.dtos.OrderResponse;
 import com.pmfml.orderflow.orderservice.entities.Order;
@@ -22,6 +23,7 @@ import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Core business logic for Order lifecycle management.
@@ -92,6 +94,36 @@ public class OrderService {
                 savedOrder.getId(), tenantId, savedOrder.getTotalAmount());
 
         return orderMapper.toResponse(savedOrder);
+    }
+
+    /**
+     * Lists all orders belonging to a tenant, most recent first.
+     *
+     * @param tenantId the tenant identifier
+     * @return ordered list of order responses
+     */
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getOrdersByTenant(String tenantId) {
+        log.info("[OrderQuery] Listing orders: tenantId={}", tenantId);
+        return orderRepository.findByTenantIdOrderByCreatedAtDesc(tenantId).stream()
+                .map(orderMapper::toResponse)
+                .toList();
+    }
+
+    /**
+     * Fetches a single order by ID, scoped to the authenticated tenant.
+     *
+     * @param orderId  the order UUID
+     * @param tenantId the tenant identifier
+     * @return the order response
+     * @throws OrderNotFoundException if no order matches the ID within the tenant
+     */
+    @Transactional(readOnly = true)
+    public OrderResponse getOrderById(UUID orderId, String tenantId) {
+        log.info("[OrderQuery] Fetching order: orderId={}, tenantId={}", orderId, tenantId);
+        return orderRepository.findByIdAndTenantId(orderId, tenantId)
+                .map(orderMapper::toResponse)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
     }
 
     /**

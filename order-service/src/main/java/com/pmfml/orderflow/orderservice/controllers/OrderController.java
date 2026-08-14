@@ -10,6 +10,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.UUID;
+
 @Slf4j
 @RestController
 @RequestMapping("/v1/orders")
@@ -37,5 +40,35 @@ public class OrderController {
         OrderResponse response = orderService.createOrder(request, tenantId);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Lists all orders for the authenticated tenant, most recent first.
+     *
+     * @param tenantId the tenant ID forwarded from the gateway
+     * @return list of order responses
+     */
+    @GetMapping
+    public List<OrderResponse> getOrders(
+            @RequestHeader("X-Tenant-Id") String tenantId) {
+
+        log.info("[REST] Listing orders for tenantId: {}", tenantId);
+        return orderService.getOrdersByTenant(tenantId);
+    }
+
+    /**
+     * Fetches a single order by ID, scoped to the authenticated tenant.
+     *
+     * @param id       the order UUID
+     * @param tenantId the tenant ID forwarded from the gateway
+     * @return the order response
+     */
+    @GetMapping("/{id}")
+    public OrderResponse getOrder(
+            @PathVariable UUID id,
+            @RequestHeader("X-Tenant-Id") String tenantId) {
+
+        log.info("[REST] Fetching order: orderId={}, tenantId={}", id, tenantId);
+        return orderService.getOrderById(id, tenantId);
     }
 }
