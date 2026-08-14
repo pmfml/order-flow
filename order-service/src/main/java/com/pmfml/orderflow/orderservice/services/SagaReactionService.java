@@ -96,6 +96,45 @@ public class SagaReactionService {
     }
 
     /**
+     * Handles a successful payment capture from the webhook.
+     *
+     * <p>Updates the order with the capture timestamp.
+     *
+     * @param event the {@code payment.captured} event envelope
+     */
+    @Transactional
+    public void handlePaymentCaptured(EventEnvelope event) {
+        if (alreadyProcessed(event)) {
+            return;
+        }
+
+        String orderId = extractOrderId(event);
+        log.info("[SagaReaction] Processing {} for order {}", EventTypes.PAYMENT_CAPTURED, orderId);
+
+        Optional<Order> orderOpt = findOrder(orderId);
+        if (orderOpt.isEmpty()) {
+            return;
+        }
+
+        Order order = orderOpt.get();
+        // Since capture can happen out of order (e.g., webhook arrives before authorized event),
+        // we allow capturing if it's PENDING or CONFIRMED.
+        if (order.getStatus() != OrderStatus.CONFIRMED && order.getStatus() != OrderStatus.PENDING) {
+            log.warn("[SagaReaction] Ignoring {} for order {}: status is {}",
+                    EventTypes.PAYMENT_CAPTURED, order.getId(), order.getStatus());
+            recordProcessed(event);
+            return;
+        }
+
+        order.capture(event.occurredAt());
+        orderRepository.save(order);
+        recordProcessed(event);
+
+        log.info("[SagaReaction] Order captured: orderId={}, tenantId={}",
+                orderId, order.getTenantId());
+    }
+
+    /**
      * Handles a failed payment authorization.
      *
      * <p>Transitions the order to {@link OrderStatus#CANCELLED} and writes

@@ -60,4 +60,22 @@ public class PaymentEventConsumer {
             throw new RuntimeException(e);
         }
     }
+
+    /**
+     * Processes successful payment captures.
+     *
+     * @param message raw JSON event envelope
+     */
+    @KafkaListener(topics = EventTypes.PAYMENT_CAPTURED, groupId = "order-service")
+    public void consumePaymentCaptured(@Payload String message) {
+        log.debug("[Consumer] Received {} event", EventTypes.PAYMENT_CAPTURED);
+        try {
+            EventEnvelope event = objectMapper.readValue(message, EventEnvelope.class);
+            sagaReactionService.handlePaymentCaptured(event);
+        } catch (Exception e) {
+            log.error("[Consumer] Error processing {} event: {}",
+                    EventTypes.PAYMENT_CAPTURED, e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
 }

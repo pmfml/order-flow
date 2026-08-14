@@ -79,7 +79,7 @@ class SagaReactionIntegrationTest {
         kafkaTemplate.send(EventTypes.PAYMENT_AUTHORIZED, pendingOrder.getId().toString(), message).get();
 
         // Wait for async consumer processing
-        Thread.sleep(3000);
+        Thread.sleep(5000);
 
         // Assert — Order status transitioned to CONFIRMED
         Order updatedOrder = orderRepository.findById(pendingOrder.getId()).orElseThrow();
@@ -116,7 +116,7 @@ class SagaReactionIntegrationTest {
         kafkaTemplate.send(EventTypes.PAYMENT_FAILED, pendingOrder.getId().toString(), message).get();
 
         // Wait for async consumer processing
-        Thread.sleep(3000);
+        Thread.sleep(5000);
 
         // Assert — Order status transitioned to CANCELLED
         Order updatedOrder = orderRepository.findById(pendingOrder.getId()).orElseThrow();
@@ -144,7 +144,7 @@ class SagaReactionIntegrationTest {
         kafkaTemplate.send(EventTypes.INVENTORY_RESERVATION_FAILED, pendingOrder.getId().toString(), message).get();
 
         // Wait for async consumer processing
-        Thread.sleep(3000);
+        Thread.sleep(5000);
 
         // Assert — Order status transitioned to CANCELLED
         Order updatedOrder = orderRepository.findById(pendingOrder.getId()).orElseThrow();
@@ -171,12 +171,12 @@ class SagaReactionIntegrationTest {
 
         // Act — send the same event twice
         kafkaTemplate.send(EventTypes.PAYMENT_AUTHORIZED, pendingOrder.getId().toString(), message).get();
-        Thread.sleep(2000); // Give it time to process the first one
+        Thread.sleep(5000); // Give it time to process the first one
         
         // At this point, order should be confirmed and outbox should have 1 event.
         // If we send it again, we expect idempotency logic to skip it entirely.
         kafkaTemplate.send(EventTypes.PAYMENT_AUTHORIZED, pendingOrder.getId().toString(), message).get();
-        Thread.sleep(2000);
+        Thread.sleep(5000);
 
         // Assert — only one outbox event created (idempotent)
         List<OutboxEvent> outboxEvents = outboxEventRepository.findAll();

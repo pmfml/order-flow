@@ -76,6 +76,9 @@ public class Order {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "captured_at")
+    private Instant capturedAt;
+
     /**
      * Transitions this order to {@link OrderStatus#CONFIRMED}.
      *
@@ -84,6 +87,19 @@ public class Order {
     public void confirm() {
         assertPending("confirm");
         this.status = OrderStatus.CONFIRMED;
+    }
+
+    /**
+     * Records the time the payment was captured.
+     *
+     * @param captureTime the time of capture
+     */
+    public void capture(Instant captureTime) {
+        if (this.status != OrderStatus.CONFIRMED && this.status != OrderStatus.PENDING) {
+            throw new IllegalStateException(
+                    "Cannot capture order " + id + ": current status is " + status + ", expected PENDING or CONFIRMED");
+        }
+        this.capturedAt = captureTime;
     }
 
     /**
