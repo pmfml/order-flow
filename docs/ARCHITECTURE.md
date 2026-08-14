@@ -319,22 +319,12 @@ completed below is still a plan.
 | 6 | Order: Saga reactions (CONFIRMED / CANCELLED) and compensation | ✅ Done |
 | 7 | API Gateway: routing, JWT validation, Redis rate limiting | ✅ Done |
 | 8 | Observability: Prometheus, Grafana, correlation IDs | ✅ Done |
-| 9 | Lambda: external payment webhook (Node.js) | ⬜ Planned |
+| 9 | Lambda: external payment webhook (Node.js) | ✅ Done |
 | 10 | Frontend: React + Vite, Saga timeline, tenant dashboard | ⬜ Planned |
 
 Consequences worth stating explicitly, because the design sections above describe
 their end state:
 
-- **No authentication or authorization anywhere yet** (Phase 7). `X-Tenant-Id` is
-  read straight from the request, so tenant isolation is currently enforced only by
-  the repository queries and is trivially bypassed by calling a service directly.
-  The multi-tenancy model in §8 and the Hibernate `@Filter` in §6 are not in place.
-- **No Kafka consumers yet** (Phase 4). `orders.created` is produced but the Inventory Service does not yet consume it. The Payment Service (Phase 5) and Order Service (Phase 6) consumers are implemented, but they depend on earlier phases in the Saga to trigger them. The
-  `processed_events` dedup store of §7.5 is created by each service as it gains its
-  first listener.
-- **No metrics endpoint** (Phase 8). The Prometheus and Grafana containers start but
-  scrape nothing: Micrometer and Actuator are not wired, so the dashboards in §11
-  do not exist.
 - **Frontend is Vite scaffolding** (Phase 10), not the dashboard described in §13.
 
 ### ✅ Phase 0: Foundation
@@ -360,11 +350,13 @@ their end state:
 ### ✅ Phase 3: Outbox Poller → Kafka
 - `OutboxPublisher` scheduled component polling `outbox_events` every 500ms.
 - Kafka producer publishing to `orders.created` topic with `aggregateId` as message key (per-order partition ordering).
-- **Phase 3 (Outbox Poller):** Refactored to polling with blocking ACKs for at-least-once delivery. Resilient to broker disconnections.
-- **Phase 4 (Inventory Consumer & Saga):** Implemented idempotent consumption of `orders.created` and `orders.cancelled`. Stock deduction using Optimistic Locking. Handled UUID representation quirks by using String IDs. DLT configured for unknown errors.
-- **Phase 5 (Payment Service):** Bootstrapped with PostgreSQL and Flyway (`spring-boot-flyway` required for Boot 3.3/4.x). Idempotent listener for `inventory.reserved`. Integrated Stripe PaymentGateway (authorize-only). DLT configured. Full Testcontainers integration tests.
-- `@EnableScheduling` activated in `OrderServiceApplication`.
-- Full unit test coverage for happy path, empty outbox, Kafka failure, and batch processing.
+- Refactored to polling with blocking ACKs for at-least-once delivery. Resilient to broker disconnections.
+
+### ✅ Phase 4: Inventory Consumer & Saga
+- Implemented idempotent consumption of `orders.created` and `orders.cancelled`. Stock deduction using Optimistic Locking. Handled UUID representation quirks by using String IDs. DLT configured for unknown errors.
+
+### ✅ Phase 5: Payment Service
+- Bootstrapped with PostgreSQL and Flyway (`spring-boot-flyway` required for Boot 3.3/4.x). Idempotent listener for `inventory.reserved`. Integrated Stripe PaymentGateway (authorize-only). DLT configured. Full Testcontainers integration tests.
 
 ### ✅ Phase 6: Order Service Saga Reactions
 - Migrated `orders` DB to include `processed_events` idempotency table.
@@ -386,3 +378,9 @@ their end state:
 - Integration of `micrometer-registry-prometheus` for metrics format translation and `micrometer-tracing-bridge-brave` for Distributed Tracing (generating and propagating `traceId` and `spanId` across HTTP and Kafka bounds).
 - Local infrastructure augmented with Prometheus configured to dynamically scrape host ports via `host.docker.internal:host-gateway`.
 - Grafana provisioned with auto-configured Prometheus datasource (`datasource.yml`) for immediate dashboard readiness without manual UI setup.
+
+### ✅ Phase 9: Serverless Webhook Ingestion
+- AWS Lambda (`payment-webhook-lambda` in Node.js) implemented to receive asynchronous webhooks from external providers (e.g., Stripe).
+- Cryptographic signature validation (`STRIPE_WEBHOOK_SECRET`) applied at the edge, protecting internal services from malformed or malicious payloads.
+- Forwarding of normalized events to internal Payment Service endpoint (`POST /internal/v1/payment-webhook`), secured via shared `X-Internal-Api-Key` header.
+- Order Service updated to process `payment.captured` Kafka events via `SagaReactionService`, storing the final `captured_at` timestamp safely without corrupting the Saga state machine (supporting out-of-order delivery).

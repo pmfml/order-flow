@@ -30,7 +30,7 @@ Conceptually, OrderFlow is "fulfillment infrastructure as a service" — a simpl
 - ✅ **Multi-Tenancy:** JWT-based tenant isolation with row-level filtering (Hibernate `@Filter` for PostgreSQL, manual scoping with test enforcement for MongoDB). Tenant scoping is enforced by extracting the `tenant_id` claim from the JWT at the API Gateway and forwarding it securely via the `X-Tenant-Id` header. *(Implemented in Phase 7)*
 - ✅ **Per-Tenant Rate Limiting:** Redis token-bucket rate limiting at the API Gateway, enforced per tenant based on their plan limits. *(Implemented in Phase 7)*
 - ✅ **Full Observability:** Micrometer metrics exported to Prometheus, enabling Grafana dashboards to track saga completion rates, per-service p99 latency, Kafka consumer lag, and per-tenant order volume. Additionally, Distributed Tracing (Brave) propagates `traceId` across HTTP and Kafka boundaries for comprehensive logging correlation. *(Implemented in Phase 8)*
-- ⬜ **Serverless Webhook Ingestion:** AWS Lambda (Node.js) receiving external payment provider webhooks — bursty, stateless, cold-start-tolerant traffic handled outside the JVM services. *(Phase 9)*
+- ✅ **Serverless Webhook Ingestion:** AWS Lambda (Node.js) receiving external payment provider webhooks — bursty, stateless, cold-start-tolerant traffic handled outside the JVM services. *(Implemented in Phase 9)*
 - ⬜ **Tenant Dashboard:** React + Vite frontend with live order list, saga timeline visualization per order, and plan usage indicators. *(Phase 10)*
 
 ---
@@ -120,7 +120,7 @@ cp .env.example .env
 | `REDIS_HOST` / `REDIS_PORT` | Redis connection _(Phase 7)_ | `localhost` / `6379` |
 | `JWT_ISSUER_URI` | OAuth2 issuer URI (points to mock server in dev) _(Phase 7)_ | `http://localhost:8099/orderflow` |
 | `JWT_JWK_SET_URI` | OAuth2 JWK Set URI _(Phase 7)_ | `http://localhost:8099/orderflow/jwks` |
-| `INTERNAL_API_KEY` | Shared secret for Lambda → Payment Service _(Phase 9)_ | _(unset)_ |
+| `INTERNAL_API_KEY` | Shared secret for Lambda → Payment Service _(Phase 9)_ | `dev-secret-key` |
 | `PAYMENT_WEBHOOK_SECRET` | Webhook signature validation secret _(Phase 9)_ | _(unset)_ |
 
 ### 4. Build & Run Tests
@@ -187,8 +187,7 @@ taken from an `X-Tenant-Id` header, which any caller can set.
 
 | Method | Endpoint | Description | Status |
 | :--- | :--- | :--- | :--- |
-| **GET** | `/api/v1/payments/{orderId}` | Fetches payment status for an order | ⬜ Phase 9 |
-| **POST** | `/internal/v1/payment-webhook` | Internal: called by Lambda, shared-secret header | ⬜ Phase 9 |
+| **POST** | `/internal/v1/payment-webhook` | Internal: called by Lambda, shared-secret header | ✅ Phase 9 |
 
 ### Error Responses
 
