@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
 import './AppLayout.css'
 
 interface AppLayoutProps {
@@ -6,6 +7,14 @@ interface AppLayoutProps {
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
+  const { auth, logout } = useAuth()
+  const navigate = useNavigate()
+
+  function handleLogout() {
+    logout()
+    navigate('/login', { replace: true })
+  }
+
   return (
     <div className="app-layout">
       <aside className="sidebar" role="navigation" aria-label="Main navigation">
@@ -26,7 +35,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </nav>
 
         <div className="sidebar-footer">
-          <button className="nav-link logout-btn" id="nav-logout">
+          {auth && (
+            <div className="sidebar-tenant">
+              <span className="tenant-label">Tenant</span>
+              <span className="tenant-id font-mono">{auth.tenantId}</span>
+            </div>
+          )}
+          <button
+            className="nav-link logout-btn"
+            id="nav-logout"
+            onClick={handleLogout}
+          >
             <span className="nav-icon" aria-hidden="true">🚪</span>
             Sign Out
           </button>
