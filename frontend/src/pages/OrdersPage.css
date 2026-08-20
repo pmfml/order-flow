@@ -1,0 +1,74 @@
+/* --- Orders Table -------------------------------------------- */
+
+.orders-table-wrapper {
+  padding: 0;
+  overflow-x: auto;
+}
+
+.orders-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.orders-table th {
+  text-align: left;
+  padding: var(--space-4) var(--space-5);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.orders-table td {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+}
+
+.orders-row {
+  transition: background var(--transition-fast);
+}
+
+.orders-row:hover {
+  background: var(--glass-bg-hover);
+}
+
+/* --- Error --------------------------------------------------- */
+
+.orders-error {
+  text-align: center;
+  padding: var(--space-8);
+}
+
+/* --- Empty State --------------------------------------------- */
+
+.orders-empty {
+  text-align: center;
+  padding: var(--space-12);
+}
+
+.orders-empty-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: var(--space-4);
+}
+
+.orders-empty h3 {
+  margin-bottom: var(--space-2);
+}
+
+/* --- Loading Skeleton ---------------------------------------- */
+
+.skeleton-row {
+  height: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-4);
+}
+
+.skeleton-row:nth-child(1) { width: 100%; }
+.skeleton-row:nth-child(2) { width: 85%; }
+.skeleton-row:nth-child(3) { width: 70%; }
