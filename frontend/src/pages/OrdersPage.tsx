@@ -1,35 +1,37 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getOrders } from '../api/orders'
 import type { OrderResponse } from '../types/order'
+import StatusBadge from '../components/StatusBadge'
 import './OrdersPage.css'
+
+const POLL_INTERVAL_MS = 5_000
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const navigate = useNavigate()
+
+  const fetchOrders = useCallback(async (isInitial: boolean) => {
+    try {
+      const data = await getOrders()
+      setOrders(data)
+      setError(null)
+    } catch (err) {
+      if (isInitial) {
+        setError(err instanceof Error ? err.message : 'Failed to load orders')
+      }
+    } finally {
+      if (isInitial) setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    let cancelled = false
-
-    async function fetchOrders() {
-      try {
-        const data = await getOrders()
-        if (!cancelled) {
-          setOrders(data)
-          setError(null)
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load orders')
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    fetchOrders()
-    return () => { cancelled = true }
-  }, [])
+    fetchOrders(true)
+    const interval = setInterval(() => fetchOrders(false), POLL_INTERVAL_MS)
+    return () => clearInterval(interval)
+  }, [fetchOrders])
 
   return (
     <div className="animate-fade-in">
@@ -63,12 +65,19 @@ export default function OrdersPage() {
             </thead>
             <tbody className="stagger-enter">
               {orders.map((order) => (
-                <tr key={order.id} className="orders-row">
+                <tr
+                  key={order.id}
+                  className="orders-row orders-row-clickable"
+                  onClick={() => navigate(`/orders/${order.id}`)}
+                  role="link"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' && navigate(`/orders/${order.id}`)}
+                >
                   <td className="font-mono truncate">{order.id.slice(0, 8)}…</td>
-                  <td>{order.status}</td>
+                  <td><StatusBadge status={order.status} /></td>
                   <td>${order.totalAmount.toFixed(2)}</td>
                   <td>{order.items.length}</td>
-                  <td className="text-secondary">{new Date(order.createdAt).toLocaleString()}</td>
+                  <td className="text-secondary">{timeAgo(order.createdAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -98,3 +107,16 @@ function EmptyState() {
     </div>
   )
 }
+
+/** Converts an ISO timestamp to a human-friendly relative string. */
+function timeAgo(iso: string): string {
+  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+  if (seconds < 60) return 'just now'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes} min ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
+

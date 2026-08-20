@@ -36,6 +36,15 @@
   background: var(--glass-bg-hover);
 }
 
+.orders-row-clickable {
+  cursor: pointer;
+}
+
+.orders-row-clickable:focus-visible {
+  outline: 2px solid var(--accent-light);
+  outline-offset: -2px;
+}
+
 /* --- Error --------------------------------------------------- */
 
 .orders-error {
