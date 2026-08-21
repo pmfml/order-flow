@@ -1,0 +1,83 @@
+/* --- Order Detail -------------------------------------------- */
+
+.detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.detail-section {
+  margin-bottom: var(--space-6);
+}
+
+.detail-section h3 {
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+/* --- Summary grid -------------------------------------------- */
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-5);
+}
+
+.detail-field dt {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-1);
+}
+
+.detail-field dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+}
+
+.detail-total {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--accent-light);
+}
+
+/* --- Items table --------------------------------------------- */
+
+.detail-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.detail-items-table th {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.detail-items-table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+/* --- Loading / Error ----------------------------------------- */
+
+.detail-loading {
+  padding: var(--space-8);
+}
+
+.detail-error {
+  margin-top: var(--space-6);
+  text-align: center;
+  padding: var(--space-8);
+}
