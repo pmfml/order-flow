@@ -1,0 +1,146 @@
+/* --- Saga Timeline ------------------------------------------- */
+
+.saga-timeline {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  padding: var(--space-6) var(--space-4);
+  overflow-x: auto;
+}
+
+.saga-stage-wrapper {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* --- Connector line between nodes ---------------------------- */
+
+.saga-connector {
+  width: 48px;
+  height: 2px;
+  background: var(--glass-border);
+  transition: background var(--transition-base);
+}
+
+.saga-connector-completed {
+  background: var(--status-success);
+}
+
+.saga-connector-active {
+  background: linear-gradient(90deg, var(--status-success), var(--accent-light));
+}
+
+.saga-connector-failed {
+  background: var(--status-error);
+}
+
+/* --- Node ---------------------------------------------------- */
+
+.saga-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.saga-node-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  border: 2px solid var(--glass-border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  transition: all var(--transition-base);
+}
+
+.saga-node-label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-align: center;
+  white-space: nowrap;
+  transition: color var(--transition-base);
+}
+
+/* --- State variants ------------------------------------------ */
+
+.saga-node-completed .saga-node-dot {
+  background: var(--status-success-bg);
+  border-color: var(--status-success);
+  color: var(--status-success);
+}
+
+.saga-node-completed .saga-node-label {
+  color: var(--status-success);
+}
+
+.saga-node-active .saga-node-dot {
+  background: var(--accent-subtle);
+  border-color: var(--accent-light);
+  color: var(--accent-light);
+  box-shadow: 0 0 12px var(--accent-glow), 0 0 24px var(--accent-glow);
+}
+
+.saga-node-active .saga-node-label {
+  color: var(--accent-light);
+}
+
+.saga-node-failed .saga-node-dot {
+  background: var(--status-error-bg);
+  border-color: var(--status-error);
+  color: var(--status-error);
+}
+
+.saga-node-failed .saga-node-label {
+  color: var(--status-error);
+}
+
+/* --- Pulse animation for active node ------------------------- */
+
+.saga-pulse {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-light);
+  animation: sagaPulse 2s ease-in-out infinite;
+}
+
+@keyframes sagaPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.6);
+    opacity: 0.4;
+  }
+}
+
+/* --- Responsive ---------------------------------------------- */
+
+@media (max-width: 768px) {
+  .saga-timeline {
+    padding: var(--space-4) var(--space-2);
+  }
+
+  .saga-connector {
+    width: 24px;
+  }
+
+  .saga-node-dot {
+    width: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+  }
+
+  .saga-node-label {
+    font-size: 0.625rem;
+  }
+}
