@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getOrders } from '../api/orders'
 import type { OrderResponse } from '../types/order'
 import StatusBadge from '../components/StatusBadge'
+import CreateOrderModal from '../components/CreateOrderModal'
 import './OrdersPage.css'
 
 const POLL_INTERVAL_MS = 5_000
@@ -11,6 +12,7 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showModal, setShowModal] = useState(false)
   const navigate = useNavigate()
 
   const fetchOrders = useCallback(async (isInitial: boolean) => {
@@ -36,9 +38,23 @@ export default function OrdersPage() {
   return (
     <div className="animate-fade-in">
       <div className="page-header">
-        <h1>Orders</h1>
-        <p className="text-secondary">Monitor your orders in real time</p>
+        <div className="page-header-row">
+          <div>
+            <h1>Orders</h1>
+            <p className="text-secondary">Monitor your orders in real time</p>
+          </div>
+          <button className="btn btn-primary" id="new-order-btn" onClick={() => setShowModal(true)}>
+            + New Order
+          </button>
+        </div>
       </div>
+
+      {showModal && (
+        <CreateOrderModal
+          onClose={() => setShowModal(false)}
+          onCreated={() => { setShowModal(false); fetchOrders(false) }}
+        />
+      )}
 
       {loading && <LoadingSkeleton />}
 

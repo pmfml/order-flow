@@ -1,0 +1,95 @@
+/* --- Modal Overlay ------------------------------------------- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  margin: var(--space-4);
+}
+
+/* --- Header -------------------------------------------------- */
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-6);
+}
+
+.modal-header h2 {
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: var(--space-1);
+  transition: color var(--transition-fast);
+}
+
+.modal-close:hover {
+  color: var(--text-primary);
+}
+
+/* --- Body ---------------------------------------------------- */
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.modal-item-row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.modal-qty-input {
+  max-width: 80px;
+}
+
+.modal-remove-btn {
+  padding: var(--space-2);
+  flex-shrink: 0;
+}
+
+.modal-add-btn {
+  align-self: flex-start;
+  margin-top: var(--space-1);
+}
+
+/* --- Error --------------------------------------------------- */
+
+.modal-error {
+  color: var(--status-error);
+  font-size: 0.8125rem;
+  margin-bottom: var(--space-4);
+}
+
+/* --- Footer -------------------------------------------------- */
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--glass-border);
+}
