@@ -5,6 +5,8 @@
  * API layer stays decoupled from React — no hooks required.
  */
 
+import { captureRateLimitHeaders } from './rateLimit'
+
 const STORAGE_KEY = 'orderflow_auth'
 
 interface AuthState {
@@ -60,6 +62,9 @@ export async function apiFetch<T>(
     ...options,
     headers,
   })
+
+  // Capture rate limit headers from every response (even errors)
+  captureRateLimitHeaders(response.headers)
 
   if (response.status === 204) {
     return null as T

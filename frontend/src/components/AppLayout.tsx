@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import PlanUsage from './PlanUsage'
 import './AppLayout.css'
 
 interface AppLayoutProps {
@@ -35,6 +36,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </nav>
 
         <div className="sidebar-footer">
+          <PlanUsage />
           {auth && (
             <div className="sidebar-tenant">
               <span className="tenant-label">Tenant</span>

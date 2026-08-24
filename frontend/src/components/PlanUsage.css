@@ -1,0 +1,58 @@
+/* --- Plan Usage Widget --------------------------------------- */
+
+.plan-usage {
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.plan-usage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.plan-usage-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.plan-usage-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.plan-usage-track {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: var(--space-1);
+}
+
+.plan-usage-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width var(--transition-base), background var(--transition-base);
+}
+
+.plan-usage-normal {
+  background: var(--status-success);
+}
+
+.plan-usage-warning {
+  background: var(--status-warning);
+}
+
+.plan-usage-critical {
+  background: var(--status-error);
+}
+
+.plan-usage-rate {
+  font-size: 0.625rem;
+  color: var(--text-muted);
+}
