@@ -320,12 +320,12 @@ completed below is still a plan.
 | 7 | API Gateway: routing, JWT validation, Redis rate limiting | ✅ Done |
 | 8 | Observability: Prometheus, Grafana, correlation IDs | ✅ Done |
 | 9 | Lambda: external payment webhook (Node.js) | ✅ Done |
-| 10 | Frontend: React + Vite, Saga timeline, tenant dashboard | ⬜ Planned |
+| 10 | Frontend: React + Vite, Saga timeline, tenant dashboard | ✅ Done |
 
 Consequences worth stating explicitly, because the design sections above describe
 their end state:
 
-- **Frontend is Vite scaffolding** (Phase 10), not the dashboard described in §13.
+- None currently, all documented phases are either complete or accurately marked as planned.
 
 ### ✅ Phase 0: Foundation
 - Monorepo structure, Maven reactor (`order-flow-parent`).
@@ -384,3 +384,12 @@ their end state:
 - Cryptographic signature validation (`STRIPE_WEBHOOK_SECRET`) applied at the edge, protecting internal services from malformed or malicious payloads.
 - Forwarding of normalized events to internal Payment Service endpoint (`POST /internal/v1/payment-webhook`), secured via shared `X-Internal-Api-Key` header.
 - Order Service updated to process `payment.captured` Kafka events via `SagaReactionService`, storing the final `captured_at` timestamp safely without corrupting the Saga state machine (supporting out-of-order delivery).
+
+### ✅ Phase 10: Frontend Tenant Dashboard
+- React 19 + Vite with a dark glassmorphic design system (`index.css`).
+- Context-based Auth (`AuthContext`, `ProtectedRoute`) mapping tenant IDs to `sessionStorage`.
+- `apiFetch` HTTP client handling `Authorization` and `X-Tenant-Id` headers automatically.
+- Real-time `OrdersPage` with 5s polling, status badges, and empty/error states.
+- `OrderDetailPage` with an interactive, inferred `SagaTimeline` visual pipeline.
+- `PlanUsage` sidebar widget reactive to `X-RateLimit-*` headers for quota visibility.
+- Mobile-responsive layout, accessibility improvements (skip links, focus rings, reduced motion), and SVG favicon.

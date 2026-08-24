@@ -31,7 +31,7 @@ Conceptually, OrderFlow is "fulfillment infrastructure as a service" — a simpl
 - ✅ **Per-Tenant Rate Limiting:** Redis token-bucket rate limiting at the API Gateway, enforced per tenant based on their plan limits. *(Implemented in Phase 7)*
 - ✅ **Full Observability:** Micrometer metrics exported to Prometheus, enabling Grafana dashboards to track saga completion rates, per-service p99 latency, Kafka consumer lag, and per-tenant order volume. Additionally, Distributed Tracing (Brave) propagates `traceId` across HTTP and Kafka boundaries for comprehensive logging correlation. *(Implemented in Phase 8)*
 - ✅ **Serverless Webhook Ingestion:** AWS Lambda (Node.js) receiving external payment provider webhooks — bursty, stateless, cold-start-tolerant traffic handled outside the JVM services. *(Implemented in Phase 9)*
-- ⬜ **Tenant Dashboard:** React + Vite frontend with live order list, saga timeline visualization per order, and plan usage indicators. *(Phase 10)*
+- ✅ **Tenant Dashboard:** React + Vite frontend with live order list, saga timeline visualization per order, and plan usage indicators. *(Phase 10)*
 
 ---
 
@@ -152,8 +152,7 @@ Service ports:
 cd frontend && npm install && npm run dev
 ```
 
-Serves on `http://localhost:5175`. This is currently the default Vite scaffolding — the
-tenant dashboard is Phase 10.
+Serves on `http://localhost:5175`. The dashboard expects the API Gateway to be running on port `8090` and the mock OAuth2 server to be running (via `docker compose up`) to issue valid JWTs.
 
 ---
 
