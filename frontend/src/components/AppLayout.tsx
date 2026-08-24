@@ -54,7 +54,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </div>
       </aside>
 
-      <main className="main-content">
+      <main className="main-content" id="main-content">
         {children}
       </main>
     </div>
