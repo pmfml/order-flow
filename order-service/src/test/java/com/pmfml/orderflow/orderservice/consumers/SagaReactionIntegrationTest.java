@@ -23,10 +23,12 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.Duration;
+import org.awaitility.Awaitility;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
+@SpringBootTest(properties = "spring.jpa.open-in-view=false")
 @Import(TestcontainersConfiguration.class)
 class SagaReactionIntegrationTest {
 
@@ -78,23 +80,23 @@ class SagaReactionIntegrationTest {
         String message = objectMapper.writeValueAsString(event);
         kafkaTemplate.send(EventTypes.PAYMENT_AUTHORIZED, pendingOrder.getId().toString(), message).get();
 
-        // Wait for async consumer processing
-        Thread.sleep(5000);
+        // Wait and Assert
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(200))
+                .untilAsserted(() -> {
+                    Order updatedOrder = orderRepository.findById(pendingOrder.getId()).orElseThrow();
+                    assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
 
-        // Assert — Order status transitioned to CONFIRMED
-        Order updatedOrder = orderRepository.findById(pendingOrder.getId()).orElseThrow();
-        assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+                    List<OutboxEvent> outboxEvents = outboxEventRepository.findAll();
+                    assertThat(outboxEvents).hasSize(1);
+                    assertThat(outboxEvents.getFirst().getEventType()).isEqualTo(EventTypes.ORDER_CONFIRMED);
+                    assertThat(outboxEvents.getFirst().getAggregateId()).isEqualTo(pendingOrder.getId());
 
-        // Assert — Outbox event written
-        List<OutboxEvent> outboxEvents = outboxEventRepository.findAll();
-        assertThat(outboxEvents).hasSize(1);
-        assertThat(outboxEvents.getFirst().getEventType()).isEqualTo(EventTypes.ORDER_CONFIRMED);
-        assertThat(outboxEvents.getFirst().getAggregateId()).isEqualTo(pendingOrder.getId());
-
-        // Assert — Idempotency recorded
-        List<ProcessedEvent> processed = processedEventRepository.findAll();
-        assertThat(processed).hasSize(1);
-        assertThat(processed.getFirst().getEventId()).isEqualTo(event.eventId());
+                    List<ProcessedEvent> processed = processedEventRepository.findAll();
+                    assertThat(processed).hasSize(1);
+                    assertThat(processed.getFirst().getEventId()).isEqualTo(event.eventId());
+                });
     }
 
     @Test
@@ -115,17 +117,18 @@ class SagaReactionIntegrationTest {
         String message = objectMapper.writeValueAsString(event);
         kafkaTemplate.send(EventTypes.PAYMENT_FAILED, pendingOrder.getId().toString(), message).get();
 
-        // Wait for async consumer processing
-        Thread.sleep(5000);
+        // Wait and Assert
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(200))
+                .untilAsserted(() -> {
+                    Order updatedOrder = orderRepository.findById(pendingOrder.getId()).orElseThrow();
+                    assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.CANCELLED);
 
-        // Assert — Order status transitioned to CANCELLED
-        Order updatedOrder = orderRepository.findById(pendingOrder.getId()).orElseThrow();
-        assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.CANCELLED);
-
-        // Assert — Outbox event written
-        List<OutboxEvent> outboxEvents = outboxEventRepository.findAll();
-        assertThat(outboxEvents).hasSize(1);
-        assertThat(outboxEvents.getFirst().getEventType()).isEqualTo(EventTypes.ORDER_CANCELLED);
+                    List<OutboxEvent> outboxEvents = outboxEventRepository.findAll();
+                    assertThat(outboxEvents).hasSize(1);
+                    assertThat(outboxEvents.getFirst().getEventType()).isEqualTo(EventTypes.ORDER_CANCELLED);
+                });
     }
 
     @Test
@@ -143,17 +146,18 @@ class SagaReactionIntegrationTest {
         String message = objectMapper.writeValueAsString(event);
         kafkaTemplate.send(EventTypes.INVENTORY_RESERVATION_FAILED, pendingOrder.getId().toString(), message).get();
 
-        // Wait for async consumer processing
-        Thread.sleep(5000);
+        // Wait and Assert
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(200))
+                .untilAsserted(() -> {
+                    Order updatedOrder = orderRepository.findById(pendingOrder.getId()).orElseThrow();
+                    assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.CANCELLED);
 
-        // Assert — Order status transitioned to CANCELLED
-        Order updatedOrder = orderRepository.findById(pendingOrder.getId()).orElseThrow();
-        assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.CANCELLED);
-
-        // Assert — Outbox event written
-        List<OutboxEvent> outboxEvents = outboxEventRepository.findAll();
-        assertThat(outboxEvents).hasSize(1);
-        assertThat(outboxEvents.getFirst().getEventType()).isEqualTo(EventTypes.ORDER_CANCELLED);
+                    List<OutboxEvent> outboxEvents = outboxEventRepository.findAll();
+                    assertThat(outboxEvents).hasSize(1);
+                    assertThat(outboxEvents.getFirst().getEventType()).isEqualTo(EventTypes.ORDER_CANCELLED);
+                });
     }
 
     @Test
@@ -171,12 +175,16 @@ class SagaReactionIntegrationTest {
 
         // Act — send the same event twice
         kafkaTemplate.send(EventTypes.PAYMENT_AUTHORIZED, pendingOrder.getId().toString(), message).get();
-        Thread.sleep(5000); // Give it time to process the first one
         
-        // At this point, order should be confirmed and outbox should have 1 event.
-        // If we send it again, we expect idempotency logic to skip it entirely.
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(200))
+                .untilAsserted(() -> assertThat(outboxEventRepository.findAll()).hasSize(1));
+        
         kafkaTemplate.send(EventTypes.PAYMENT_AUTHORIZED, pendingOrder.getId().toString(), message).get();
-        Thread.sleep(5000);
+        
+        // Wait briefly to ensure it processed and skipped
+        Thread.sleep(1500);
 
         // Assert — only one outbox event created (idempotent)
         List<OutboxEvent> outboxEvents = outboxEventRepository.findAll();

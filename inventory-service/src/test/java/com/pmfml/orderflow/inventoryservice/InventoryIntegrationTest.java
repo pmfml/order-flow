@@ -36,6 +36,8 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.time.Duration;
+import org.awaitility.Awaitility;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -105,15 +107,17 @@ class InventoryIntegrationTest {
         kafkaTemplate.send(EventTypes.ORDER_CREATED, orderId.toString(), message).get();
 
         // Wait for async processing
-        Thread.sleep(2000);
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(200))
+                .untilAsserted(() -> {
+                    Product updatedProduct = productRepository.findById(product.getId()).orElseThrow();
+                    assertThat(updatedProduct.getStockQuantity()).isEqualTo(7);
 
-        // Verify DB State
-        Product updatedProduct = productRepository.findById(product.getId()).orElseThrow();
-        assertThat(updatedProduct.getStockQuantity()).isEqualTo(7);
-
-        List<StockReservation> reservations = stockReservationRepository.findByOrderIdAndTenantId(orderId.toString(), tenantId);
-        assertThat(reservations).hasSize(1);
-        assertThat(reservations.getFirst().getStatus()).isEqualTo(ReservationStatus.RESERVED);
+                    List<StockReservation> reservations = stockReservationRepository.findByOrderIdAndTenantId(orderId.toString(), tenantId);
+                    assertThat(reservations).hasSize(1);
+                    assertThat(reservations.getFirst().getStatus()).isEqualTo(ReservationStatus.RESERVED);
+                });
 
         List<ProcessedEvent> processed = processedEventRepository.findAll();
         assertThat(processed).hasSize(1);

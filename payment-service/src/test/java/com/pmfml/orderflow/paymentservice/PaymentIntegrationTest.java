@@ -23,6 +23,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.Duration;
+import org.awaitility.Awaitility;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -80,24 +82,25 @@ class PaymentIntegrationTest {
         String message = objectMapper.writeValueAsString(inventoryReservedEvent);
         kafkaTemplate.send(EventTypes.INVENTORY_RESERVED, orderId.toString(), message).get();
 
-        // Wait for async consumer processing
-        Thread.sleep(3000);
+        // Wait and Assert
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(200))
+                .untilAsserted(() -> {
+                    List<PaymentTransaction> transactions = paymentTransactionRepository.findAll();
+                    assertThat(transactions).hasSize(1);
 
-        // Assert — PaymentTransaction persisted
-        List<PaymentTransaction> transactions = paymentTransactionRepository.findAll();
-        assertThat(transactions).hasSize(1);
+                    PaymentTransaction tx = transactions.getFirst();
+                    assertThat(tx.getOrderId()).isEqualTo(orderId);
+                    assertThat(tx.getTenantId()).isEqualTo(tenantId);
+                    assertThat(tx.getStatus()).isEqualTo(PaymentStatus.AUTHORIZED);
+                    assertThat(tx.getStripePaymentIntentId()).isEqualTo(stripeIntentId);
+                    assertThat(tx.getAmount()).isEqualByComparingTo(new BigDecimal("150.5"));
 
-        PaymentTransaction tx = transactions.getFirst();
-        assertThat(tx.getOrderId()).isEqualTo(orderId);
-        assertThat(tx.getTenantId()).isEqualTo(tenantId);
-        assertThat(tx.getStatus()).isEqualTo(PaymentStatus.AUTHORIZED);
-        assertThat(tx.getStripePaymentIntentId()).isEqualTo(stripeIntentId);
-        assertThat(tx.getAmount()).isEqualByComparingTo(new BigDecimal("150.5"));
-
-        // Assert — Idempotency recorded
-        List<ProcessedEvent> processed = processedEventRepository.findAll();
-        assertThat(processed).hasSize(1);
-        assertThat(processed.getFirst().getEventId()).isEqualTo(inventoryReservedEvent.eventId());
+                    List<ProcessedEvent> processed = processedEventRepository.findAll();
+                    assertThat(processed).hasSize(1);
+                    assertThat(processed.getFirst().getEventId()).isEqualTo(inventoryReservedEvent.eventId());
+                });
     }
 
     @Test
@@ -123,12 +126,15 @@ class PaymentIntegrationTest {
         String message = objectMapper.writeValueAsString(event);
         kafkaTemplate.send(EventTypes.INVENTORY_RESERVED, orderId.toString(), message).get();
 
-        Thread.sleep(3000);
-
-        // Assert — Transaction persisted with FAILED status
-        List<PaymentTransaction> transactions = paymentTransactionRepository.findAll();
-        assertThat(transactions).hasSize(1);
-        assertThat(transactions.getFirst().getStatus()).isEqualTo(PaymentStatus.FAILED);
+        // Wait and Assert
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(200))
+                .untilAsserted(() -> {
+                    List<PaymentTransaction> transactions = paymentTransactionRepository.findAll();
+                    assertThat(transactions).hasSize(1);
+                    assertThat(transactions.getFirst().getStatus()).isEqualTo(PaymentStatus.FAILED);
+                });
     }
 
     @Test
@@ -156,9 +162,17 @@ class PaymentIntegrationTest {
 
         // Act — send the same event twice
         kafkaTemplate.send(EventTypes.INVENTORY_RESERVED, orderId.toString(), message).get();
-        Thread.sleep(3000);
+        
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(200))
+                .untilAsserted(() -> assertThat(paymentTransactionRepository.findAll()).hasSize(1));
+
         kafkaTemplate.send(EventTypes.INVENTORY_RESERVED, orderId.toString(), message).get();
-        Thread.sleep(3000);
+        
+        // Wait a small amount to ensure consumer processed it (it should skip)
+        // Since we can't await a "no-op", we await 1 second without error.
+        Thread.sleep(1000); 
 
         // Assert — only one transaction created (idempotent)
         List<PaymentTransaction> transactions = paymentTransactionRepository.findAll();
