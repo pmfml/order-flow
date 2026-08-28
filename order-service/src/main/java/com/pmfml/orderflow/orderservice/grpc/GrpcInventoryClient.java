@@ -9,7 +9,6 @@ import com.pmfml.orderflow.orderservice.exceptions.ProductNotFoundException;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import lombok.extern.slf4j.Slf4j;
-import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -21,8 +20,11 @@ import java.math.BigDecimal;
 @Service
 public class GrpcInventoryClient implements InventoryClient {
 
-    @GrpcClient("inventory-service")
-    private InventoryServiceGrpc.InventoryServiceBlockingStub inventoryStub;
+    private final InventoryServiceGrpc.InventoryServiceBlockingStub inventoryStub;
+
+    public GrpcInventoryClient(InventoryServiceGrpc.InventoryServiceBlockingStub inventoryServiceStub) {
+        this.inventoryStub = inventoryServiceStub;
+    }
 
     @Override
     public ProductInfo fetchAvailableProduct(String productId, int quantity, String tenantId) {
@@ -61,8 +63,7 @@ public class GrpcInventoryClient implements InventoryClient {
      * to the caller.
      */
     // Package-private so the mapping can be unit tested directly. The stub itself
-    // arrives through @GrpcClient field injection, which cannot be supplied from a
-    // test without reflection; moving it to constructor injection is a follow-up.
+    // is supplied through constructor injection, allowing easy mocking.
     RuntimeException translate(StatusRuntimeException e, String productId) {
         Status.Code code = e.getStatus().getCode();
 

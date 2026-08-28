@@ -11,6 +11,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import org.springframework.data.domain.PageRequest;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -51,7 +52,7 @@ class OutboxEventRepositoryTest {
 
         outboxEventRepository.saveAll(List.of(unprocessed, processed));
 
-        List<OutboxEvent> results = outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc();
+        List<OutboxEvent> results = outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc(PageRequest.of(0, 100));
 
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getAggregateId()).isEqualTo(unprocessed.getAggregateId());
@@ -71,7 +72,7 @@ class OutboxEventRepositoryTest {
 
         outboxEventRepository.save(processed);
 
-        List<OutboxEvent> results = outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc();
+        List<OutboxEvent> results = outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc(PageRequest.of(0, 100));
 
         assertThat(results).isEmpty();
     }

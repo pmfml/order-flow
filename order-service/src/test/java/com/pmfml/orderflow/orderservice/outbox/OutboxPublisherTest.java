@@ -10,6 +10,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.kafka.core.KafkaTemplate;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
@@ -56,7 +58,7 @@ class OutboxPublisherTest {
     @BeforeEach
     void setUp() {
         outboxPublisher = new OutboxPublisher(
-                outboxEventRepository, kafkaTemplate, objectMapper, SEND_TIMEOUT_MS);
+                outboxEventRepository, kafkaTemplate, objectMapper, SEND_TIMEOUT_MS, 100);
     }
 
     @Test
@@ -64,7 +66,7 @@ class OutboxPublisherTest {
         // Given
         OutboxEvent event = buildEvent(EventTypes.ORDER_CREATED);
 
-        given(outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc())
+        given(outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc(any(org.springframework.data.domain.Pageable.class)))
                 .willReturn(List.of(event));
         given(kafkaTemplate.send(eq(EventTypes.ORDER_CREATED), eq(event.getAggregateId().toString()), any()))
                 .willReturn(CompletableFuture.completedFuture(null));
@@ -91,7 +93,7 @@ class OutboxPublisherTest {
         // Given
         OutboxEvent event = buildEvent(EventTypes.ORDER_CREATED);
 
-        given(outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc())
+        given(outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc(any(org.springframework.data.domain.Pageable.class)))
                 .willReturn(List.of(event));
         given(kafkaTemplate.send(any(), any(), any()))
                 .willReturn(CompletableFuture.completedFuture(null));
@@ -128,7 +130,7 @@ class OutboxPublisherTest {
         // which is exactly the at-least-once scenario consumers must deduplicate.
         OutboxEvent event = buildEvent(EventTypes.ORDER_CREATED);
 
-        given(outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc())
+        given(outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc(any(org.springframework.data.domain.Pageable.class)))
                 .willReturn(List.of(event), List.of(event));
         given(kafkaTemplate.send(any(), any(), any()))
                 .willReturn(CompletableFuture.completedFuture(null));
@@ -149,7 +151,7 @@ class OutboxPublisherTest {
     @Test
     void shouldDoNothingWhenNoPendingEvents() {
         // Given
-        given(outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc())
+        given(outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc(any(org.springframework.data.domain.Pageable.class)))
                 .willReturn(List.of());
 
         // When
@@ -167,7 +169,7 @@ class OutboxPublisherTest {
         // returns normally and only the future completes exceptionally.
         OutboxEvent event = buildEvent(EventTypes.ORDER_CREATED);
 
-        given(outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc())
+        given(outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc(any(org.springframework.data.domain.Pageable.class)))
                 .willReturn(List.of(event));
         given(kafkaTemplate.send(any(), any(), any()))
                 .willReturn(CompletableFuture.failedFuture(
@@ -189,7 +191,7 @@ class OutboxPublisherTest {
         // or hung broker. The publisher must give up rather than block forever.
         OutboxEvent event = buildEvent(EventTypes.ORDER_CREATED);
 
-        given(outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc())
+        given(outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc(any(org.springframework.data.domain.Pageable.class)))
                 .willReturn(List.of(event));
         given(kafkaTemplate.send(any(), any(), any()))
                 .willReturn(new CompletableFuture<>());
@@ -207,7 +209,7 @@ class OutboxPublisherTest {
         // Given
         OutboxEvent event = buildEvent(EventTypes.ORDER_CREATED);
 
-        given(outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc())
+        given(outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc(any(org.springframework.data.domain.Pageable.class)))
                 .willReturn(List.of(event));
         given(kafkaTemplate.send(any(), any(), any()))
                 .willThrow(new RuntimeException("Kafka is down"));
@@ -227,7 +229,7 @@ class OutboxPublisherTest {
         OutboxEvent created = buildEvent(EventTypes.ORDER_CREATED);
         OutboxEvent cancelled = buildEvent(EventTypes.ORDER_CANCELLED);
 
-        given(outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc())
+        given(outboxEventRepository.findByProcessedAtIsNullOrderByCreatedAtAsc(any(org.springframework.data.domain.Pageable.class)))
                 .willReturn(List.of(created, cancelled));
         given(kafkaTemplate.send(any(), any(), any()))
                 .willReturn(CompletableFuture.completedFuture(null));

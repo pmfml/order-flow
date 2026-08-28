@@ -19,7 +19,7 @@ class GrpcInventoryClientTest {
 
     private static final String PRODUCT_ID = "prod-1";
 
-    private final GrpcInventoryClient client = new GrpcInventoryClient();
+    private final GrpcInventoryClient client = new GrpcInventoryClient(null);
 
     @Test
     void shouldTranslateNotFoundToProductNotFound() {

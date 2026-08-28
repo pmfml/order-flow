@@ -9,6 +9,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.PageRequest;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
@@ -53,15 +54,18 @@ public class OutboxPublisher {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
     private final long sendTimeoutMs;
+    private final int batchSize;
 
     public OutboxPublisher(OutboxEventRepository outboxEventRepository,
                            KafkaTemplate<String, String> kafkaTemplate,
                            ObjectMapper objectMapper,
-                           @Value("${orderflow.outbox.send-timeout-ms}") long sendTimeoutMs) {
+                           @Value("${orderflow.outbox.send-timeout-ms}") long sendTimeoutMs,
+                           @Value("${orderflow.outbox.batch-size:100}") int batchSize) {
         this.outboxEventRepository = outboxEventRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
         this.sendTimeoutMs = sendTimeoutMs;
+        this.batchSize = batchSize;
     }
 
     /**
@@ -75,7 +79,7 @@ public class OutboxPublisher {
     @Transactional
     public void pollAndPublish() {
         List<OutboxEvent> pendingEvents = outboxEventRepository
-                .findByProcessedAtIsNullOrderByCreatedAtAsc();
+                .findByProcessedAtIsNullOrderByCreatedAtAsc(PageRequest.of(0, batchSize));
 
         if (pendingEvents.isEmpty()) {
             return;
