@@ -353,28 +353,42 @@ PY
 
 ### Error
 
-A bean fails to start in tests over a property that is plainly present in
-`src/main/resources/application.properties`:
-
+A bean fails to start in tests over a property that is plainly present in `src/main/resources/application.properties`:
 ```text
 Caused by: org.springframework.util.PlaceholderResolutionException:
 Could not resolve placeholder 'orderflow.outbox.send-timeout-ms'
 in value "${orderflow.outbox.send-timeout-ms}"
 ```
+Or, Kafka integration tests (e.g. `SagaReactionIntegrationTest`) intermittently fail/timeout during message consumption:
+```text
+expected: CONFIRMED
+ but was: PENDING within 30 seconds.
+```
+While checking the consumer logs, we observe that the offset reset defaults to `latest` and skips partition offsets:
+```text
+Resetting offset for partition payment.authorized-0 to position FetchPosition{offset=1...}
+```
 
 ### Cause
 
-`src/main/resources/application.properties` and
-`src/test/resources/application.properties` both resolve to the same classpath
-resource, `classpath:/application.properties`. The test classes directory comes first
-on the test classpath, so the test copy is the only one loaded. It does not merge with
-the main file, it replaces it.
+`src/main/resources/application.properties` and `src/test/resources/application.properties` both resolve to the same classpath resource, `classpath:/application.properties`. The test classes directory comes first on the test classpath, so the test copy is the only one loaded. It does not merge with the main file, it replaces it.
+
+Because of this, all main configurations are lost in tests unless explicitly repeated in `src/test/resources/application.properties`. For Kafka, this caused consumer configurations (like `spring.kafka.consumer.auto-offset-reset=earliest` and serializers/deserializers) to fall back to default values. When a test produced a message before partition assignment finished on the Testcontainers broker, the default `latest` policy caused the consumer to ignore the message, leading to a timeout.
 
 ### Solution
 
-Repeat in the test file whatever the beans require. When only a couple of keys need to
-differ, prefer overriding them per test class so the main configuration stays in play:
+1. Repeat in the test file whatever the beans/services require. For Kafka, ensure all default serialization and offset reset properties are declared in the test-scoped file:
+```properties
+# src/test/resources/application.properties
+spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer
+spring.kafka.producer.value-serializer=org.apache.kafka.common.serialization.StringSerializer
+spring.kafka.consumer.group-id=order-service
+spring.kafka.consumer.auto-offset-reset=earliest
+spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+spring.kafka.consumer.value-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+```
 
+2. When only a couple of keys need to differ, prefer overriding them per test class so the main configuration stays in play:
 ```java
 @SpringBootTest
 @TestPropertySource(properties = {
@@ -384,10 +398,7 @@ differ, prefer overriding them per test class so the main configuration stays in
 class FlywayMigrationTest { }
 ```
 
-Note that `spring.task.scheduling.enabled` does **not** exist, so it cannot be used to
-silence `@Scheduled` beans during tests. Either give the schedule an interval long
-enough never to fire, or move `@EnableScheduling` onto a `@Profile`-gated
-configuration class.
+Note that `spring.task.scheduling.enabled` does **not** exist, so it cannot be used to silence `@Scheduled` beans during tests. Either give the schedule an interval long enough never to fire, or move `@EnableScheduling` onto a `@Profile`-gated configuration class.
 
 ---
 
