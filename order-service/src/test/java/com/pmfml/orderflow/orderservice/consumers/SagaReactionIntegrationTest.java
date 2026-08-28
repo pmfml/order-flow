@@ -30,7 +30,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(properties = "spring.jpa.open-in-view=false")
 @Import(TestcontainersConfiguration.class)
-@org.junit.jupiter.api.Disabled("Disabled due to severe Testcontainers Kafka partition assignment instability causing random timeouts across all tests")
 class SagaReactionIntegrationTest {
 
     @Autowired
@@ -162,7 +161,6 @@ class SagaReactionIntegrationTest {
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("Disabled due to Testcontainers Kafka offset bug causing timeouts on second use of same topic")
     void shouldSkipDuplicateEvent() throws Exception {
         // Arrange
         UUID eventId = UUID.randomUUID();
