@@ -10,20 +10,7 @@
 	</parent>
 	<artifactId>api-gateway</artifactId>
 	<name>api-gateway</name>
-	<description/>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
+	<description>API Gateway — routing, JWT validation, and Redis rate limiting</description>
 
 	<dependencies>
 		<dependency>
