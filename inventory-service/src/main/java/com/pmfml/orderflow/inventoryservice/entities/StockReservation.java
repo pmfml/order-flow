@@ -59,6 +59,6 @@ public class StockReservation {
      * the current time surpasses this timestamp.
      * Only valid for RESERVED status (a periodic job handles the actual logic to release stock if this expires).
      */
-    @Indexed(expireAfterSeconds = 0)
+    @Indexed(expireAfter = "0s")
     private Instant expiresAt;
 }

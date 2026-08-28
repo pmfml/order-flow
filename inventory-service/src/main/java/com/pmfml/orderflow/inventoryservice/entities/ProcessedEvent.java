@@ -45,6 +45,6 @@ public class ProcessedEvent {
      * Optional TTL index to automatically purge old processed events and prevent
      * the collection from growing indefinitely.
      */
-    @Indexed(expireAfterSeconds = 7776000) // 90 days
+    @Indexed(expireAfter = "90d") // 90 days
     private Instant createdAt;
 }
