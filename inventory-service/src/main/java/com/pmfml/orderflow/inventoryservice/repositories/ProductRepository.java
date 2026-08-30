@@ -10,4 +10,6 @@ public interface ProductRepository extends MongoRepository<Product, String> {
     Optional<Product> findByIdAndTenantId(String id, String tenantId);
     
     Optional<Product> findBySkuAndTenantId(String sku, String tenantId);
+
+    java.util.List<Product> findByTenantId(String tenantId);
 }
