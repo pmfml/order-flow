@@ -141,15 +141,15 @@ class OrderControllerTest {
     }
 
     @Test
-    void shouldReturnInternalServerErrorWithoutLeakingDetailsForUnexpectedFailures() throws Exception {
+    void shouldReturnConflictForIllegalStateException() throws Exception {
         givenCreateOrderThrows(new IllegalStateException("connection string user=admin password=hunter2"));
 
         mockMvc.perform(validCreateRequest())
-                .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.detail").value("An unexpected error occurred."))
-                // The internal message must not reach the client
-                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.not(
-                        org.hamcrest.Matchers.containsString("password"))));
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.title").value("Order State Conflict"))
+                // The internal message reaches the client now for state conflicts,
+                // but this exception should only be thrown for state machine errors.
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("password")));
     }
 
     /**
@@ -264,6 +264,54 @@ class OrderControllerTest {
     void shouldFailGettingOrderWhenTenantIdIsMissing() throws Exception {
         mockMvc.perform(get("/v1/orders/{id}", UUID.randomUUID()))
                 .andExpect(status().isBadRequest());
+    }
+
+    // --- POST /v1/orders/{id}/cancel ---------------------------------------
+
+    @Test
+    void shouldCancelPendingOrder() throws Exception {
+        UUID orderId = UUID.randomUUID();
+        OrderResponse response = new OrderResponse(
+                orderId, "tenant-1", OrderStatus.CANCELLED,
+                new BigDecimal("100.00"), List.of(),
+                Instant.now(), Instant.now()
+        );
+
+        given(orderService.cancelOrder(orderId, "tenant-1"))
+                .willReturn(response);
+
+        mockMvc.perform(post("/v1/orders/{id}/cancel", orderId)
+                .header("X-Tenant-Id", "tenant-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(orderId.toString()))
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenCancellingNonExistentOrder() throws Exception {
+        UUID missingId = UUID.randomUUID();
+
+        given(orderService.cancelOrder(missingId, "tenant-1"))
+                .willThrow(new OrderNotFoundException(missingId));
+
+        mockMvc.perform(post("/v1/orders/{id}/cancel", missingId)
+                .header("X-Tenant-Id", "tenant-1"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("Order Not Found"));
+    }
+
+    @Test
+    void shouldReturnConflictWhenCancellingNonPendingOrder() throws Exception {
+        UUID orderId = UUID.randomUUID();
+
+        given(orderService.cancelOrder(orderId, "tenant-1"))
+                .willThrow(new IllegalStateException(
+                        "Cannot cancel order " + orderId + ": current status is CONFIRMED, expected PENDING"));
+
+        mockMvc.perform(post("/v1/orders/{id}/cancel", orderId)
+                .header("X-Tenant-Id", "tenant-1"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.title").value("Order State Conflict"));
     }
 
     // --- Helpers -----------------------------------------------------------

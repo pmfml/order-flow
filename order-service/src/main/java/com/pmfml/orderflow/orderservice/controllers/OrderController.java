@@ -71,4 +71,23 @@ public class OrderController {
         log.info("[REST] Fetching order: orderId={}, tenantId={}", id, tenantId);
         return orderService.getOrderById(id, tenantId);
     }
+
+    /**
+     * Cancels an order manually.
+     *
+     * <p>Only {@code PENDING} orders can be cancelled. Returns 409 Conflict
+     * if the order has already been confirmed or cancelled by the Saga.
+     *
+     * @param id       the order UUID
+     * @param tenantId the tenant ID forwarded from the gateway
+     * @return the cancelled order snapshot
+     */
+    @PostMapping("/{id}/cancel")
+    public OrderResponse cancelOrder(
+            @PathVariable UUID id,
+            @RequestHeader("X-Tenant-Id") String tenantId) {
+
+        log.info("[REST] Cancel request: orderId={}, tenantId={}", id, tenantId);
+        return orderService.cancelOrder(id, tenantId);
+    }
 }

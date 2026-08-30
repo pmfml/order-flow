@@ -48,8 +48,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static final String TYPE_INSUFFICIENT_STOCK = "insufficient-stock";
     private static final String TYPE_SERVICE_UNAVAILABLE = "inventory-unavailable";
     private static final String TYPE_INTERNAL_ERROR = "internal-server-error";
+    private static final String TYPE_ORDER_STATE_CONFLICT = "order-state-conflict";
 
     // --- Business outcomes -------------------------------------------------
+
+    /**
+     * 409 Conflict: the order exists but its current state does not allow the
+     * requested transition (e.g., cancelling an already confirmed order).
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ProblemDetail handleIllegalState(IllegalStateException ex) {
+        log.warn("[REST] State conflict: {}", ex.getMessage());
+
+        return problem(HttpStatus.CONFLICT, TYPE_ORDER_STATE_CONFLICT,
+                "Order State Conflict", ex.getMessage());
+    }
 
     @ExceptionHandler(ProductNotFoundException.class)
     public ProblemDetail handleProductNotFound(ProductNotFoundException ex) {

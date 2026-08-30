@@ -9,9 +9,9 @@ package com.pmfml.orderflow.common.events;
  * Outbox poller routes an event using its own {@code eventType} and needs no
  * separate topic mapping.
  *
- * <p><strong>Why String constants instead of an enum:</strong> STEERING §12 asks
- * for enums when grouping related constants, but {@code @KafkaListener(topics =
- * ...)} requires a compile-time constant expression, which an enum reference
+ * <p><strong>Why String constants instead of an enum:</strong>
+ * for an architecture where microservices are strictly decoupled and do not share
+ * a common enum class in their classpath (only this common constants file).xpression, which an enum reference
  * cannot satisfy. String constants keep the values usable from annotations while
  * still centralizing them in one place.
  */

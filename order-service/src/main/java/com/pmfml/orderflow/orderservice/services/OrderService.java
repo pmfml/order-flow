@@ -127,6 +127,40 @@ public class OrderService {
     }
 
     /**
+     * Cancels an order manually (user-initiated, not Saga-driven).
+     *
+     * <p>Only {@link OrderStatus#PENDING} orders can be cancelled. If the order
+     * is already {@code CONFIRMED} or {@code CANCELLED}, the entity's state machine
+     * throws {@link IllegalStateException}, which the controller surfaces as 409 Conflict.
+     *
+     * <p>A {@code orders.cancelled} outbox event is written in the same transaction
+     * so the Inventory Service can release any held stock reservation.
+     *
+     * @param orderId  the order UUID
+     * @param tenantId the tenant identifier
+     * @return the updated order response
+     * @throws OrderNotFoundException if no order matches the ID within the tenant
+     * @throws IllegalStateException  if the order is not in a cancellable state
+     */
+    @Transactional
+    public OrderResponse cancelOrder(UUID orderId, String tenantId) {
+        log.info("[OrderCancel] Cancelling order: orderId={}, tenantId={}", orderId, tenantId);
+
+        Order order = orderRepository.findByIdAndTenantId(orderId, tenantId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+
+        order.cancel();
+        orderRepository.save(order);
+
+        writeCancellationOutboxEvent(order);
+
+        log.info("[OrderCancel] Order cancelled successfully: orderId={}, tenantId={}",
+                orderId, tenantId);
+
+        return orderMapper.toResponse(order);
+    }
+
+    /**
      * Materializes an {@code orders.created} event in the outbox table.
      *
      * <p>Only the event-specific data is stored here. The envelope fields defined
@@ -173,6 +207,37 @@ public class OrderService {
         } catch (JacksonException e) {
             throw new OutboxSerializationException(
                     "Failed to serialize outbox event payload for order %s".formatted(order.getId()), e);
+        }
+    }
+
+    /**
+     * Writes an {@code orders.cancelled} event to the outbox for manual cancellations.
+     *
+     * <p>The payload mirrors the structure used by {@link SagaReactionService}
+     * for Saga-driven cancellations, keeping downstream consumers consistent.
+     */
+    private void writeCancellationOutboxEvent(Order order) {
+        try {
+            Map<String, Object> payloadData = new LinkedHashMap<>();
+            payloadData.put("orderId", order.getId().toString());
+            payloadData.put("status", order.getStatus().name());
+
+            String payload = objectMapper.writeValueAsString(payloadData);
+
+            OutboxEvent event = OutboxEvent.builder()
+                    .aggregateType("Order")
+                    .aggregateId(order.getId())
+                    .tenantId(order.getTenantId())
+                    .eventType(EventTypes.ORDER_CANCELLED)
+                    .payload(payload)
+                    .build();
+
+            outboxEventRepository.save(event);
+            log.debug("[Outbox] Wrote {} event: orderId={}", EventTypes.ORDER_CANCELLED, order.getId());
+
+        } catch (JacksonException e) {
+            throw new OutboxSerializationException(
+                    "Failed to serialize cancellation outbox event for order %s".formatted(order.getId()), e);
         }
     }
 }
