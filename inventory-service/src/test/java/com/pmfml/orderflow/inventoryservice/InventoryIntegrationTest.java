@@ -93,6 +93,7 @@ class InventoryIntegrationTest {
                 Instant.now(),
                 Map.of(
                         "orderId", orderId.toString(),
+                        "totalAmount", 30,
                         "items", List.of(
                                 Map.of(
                                         "productId", product.getId(),

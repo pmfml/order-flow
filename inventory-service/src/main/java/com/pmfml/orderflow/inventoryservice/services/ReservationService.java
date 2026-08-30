@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -136,13 +137,23 @@ public class ReservationService {
 
     private void publishOutcome(EventEnvelope triggerEvent, String outcomeEventType) {
         String orderIdStr = (String) triggerEvent.payload().get("orderId");
-        
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("orderId", orderIdStr);
+
+        // Forward totalAmount so the Payment Service knows how much to authorize.
+        // Only relevant for inventory.reserved; harmless if present on failure events.
+        Object totalAmount = triggerEvent.payload().get("totalAmount");
+        if (totalAmount != null) {
+            payload.put("totalAmount", totalAmount);
+        }
+
         EventEnvelope outcomeEvent = new EventEnvelope(
                 UUID.randomUUID(), // New distinct event ID for the outcome
                 outcomeEventType,
                 triggerEvent.tenantId(),
                 Instant.now(),
-                Map.of("orderId", orderIdStr)
+                payload
         );
 
         try {
