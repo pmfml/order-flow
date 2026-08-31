@@ -170,4 +170,21 @@ public class PaymentService {
             throw new RuntimeException(e);
         }
     }
+
+    @Transactional(readOnly = true)
+    public com.pmfml.orderflow.paymentservice.dtos.PaymentResponse getPaymentByOrderId(UUID orderId, String tenantId) {
+        log.info("[PaymentQuery] Fetching payment for order: {}, tenantId: {}", orderId, tenantId);
+        
+        return paymentTransactionRepository.findByOrderIdAndTenantId(orderId, tenantId)
+                .map(tx -> new com.pmfml.orderflow.paymentservice.dtos.PaymentResponse(
+                        tx.getId(),
+                        tx.getOrderId(),
+                        tx.getAmount(),
+                        tx.getStatus().name(),
+                        tx.getStripePaymentIntentId(),
+                        tx.getCreatedAt(),
+                        tx.getUpdatedAt()
+                ))
+                .orElseThrow(() -> new com.pmfml.orderflow.paymentservice.exceptions.PaymentNotFoundException(orderId));
+    }
 }
