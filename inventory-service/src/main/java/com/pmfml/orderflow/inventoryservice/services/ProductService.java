@@ -6,6 +6,7 @@ import com.pmfml.orderflow.inventoryservice.exceptions.ProductNotFoundException;
 import com.pmfml.orderflow.inventoryservice.repositories.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +19,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
 
+    @Cacheable(value = "products", key = "#tenantId + ':list'")
     @Transactional(readOnly = true)
     public List<ProductResponse> getProductsByTenant(String tenantId) {
         log.info("[ProductQuery] Listing products for tenantId: {}", tenantId);
@@ -27,6 +29,7 @@ public class ProductService {
                 .toList();
     }
 
+    @Cacheable(value = "products", key = "#tenantId + ':' + #id")
     @Transactional(readOnly = true)
     public ProductResponse getProductById(String id, String tenantId) {
         log.info("[ProductQuery] Fetching product: id={}, tenantId={}", id, tenantId);

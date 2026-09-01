@@ -22,4 +22,9 @@ class TestcontainersConfiguration {
 		return new MongoDBContainer(DockerImageName.parse("mongo:latest"));
 	}
 
+	@Bean
+	@ServiceConnection
+	com.redis.testcontainers.RedisContainer redisContainer() {
+		return new com.redis.testcontainers.RedisContainer(DockerImageName.parse("redis:7.0-alpine"));
+	}
 }
