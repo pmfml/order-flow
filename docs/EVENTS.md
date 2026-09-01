@@ -52,11 +52,11 @@ topic mapping to keep in sync.
 | Topic | Producer | Consumer(s) | Status |
 |---|---|---|---|
 | `orders.created` | Order Service (Outbox) | Inventory Service | Produced |
-| `inventory.reserved` | Inventory Service | Payment Service | Phase 4 |
-| `inventory.reservation-failed` | Inventory Service | Order Service | Phase 4 |
-| `payment.authorized` | Payment Service | Order Service | Phase 5 |
-| `payment.failed` | Payment Service | Order Service | Phase 5 |
-| `payment.captured` | Payment Service | Order Service | Phase 5 |
+| `inventory.reserved` | Inventory Service | Payment Service | Produced |
+| `inventory.reservation-failed` | Inventory Service | Order Service | Produced |
+| `payment.authorized` | Payment Service | Order Service | Produced |
+| `payment.failed` | Payment Service | Order Service | Produced |
+| `payment.captured` | Payment Service | Order Service | Produced |
 | `orders.cancelled` | Order Service | Inventory Service | Produced |
 | `orders.confirmed` | Order Service | audit / future consumers | Produced |
 
@@ -219,11 +219,95 @@ in the payment lifecycle.
 | `orderId` | UUID string | Same value as the Kafka message key. |
 | `paymentIntentId` | string | Stripe PaymentIntent ID. May be null if the provider doesn't return one. |
 
-### Remaining events
+### `inventory.reserved`
 
-`inventory.*` and other `payment.*` events (`payment.authorized`, `payment.failed`) are
-specified in the phase that introduces them (see §2). Their envelopes follow §1
-unchanged.
+Produced by Inventory Service when stock is successfully reserved for an order. It forwards the `totalAmount` so the Payment Service knows how much to authorize.
+
+```json
+{
+  "eventId": "b2cc1b4e-3c2f-4e81-a6b2-0f9a8c7d5e3b",
+  "eventType": "inventory.reserved",
+  "tenantId": "tenant-e2e",
+  "occurredAt": "2026-08-02T21:49:00.000Z",
+  "payload": {
+    "orderId": "a387b12e-9bef-450d-b20a-ef370c07aa57",
+    "totalAmount": 4501.5
+  }
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `orderId` | UUID string | Same value as the Kafka message key. |
+| `totalAmount` | number | Extracted from `orders.created` and forwarded to trigger payment. |
+
+### `inventory.reservation-failed`
+
+Produced by Inventory Service when stock is insufficient for any item in the order. Triggers saga compensation.
+
+```json
+{
+  "eventId": "c3cc1b4e-3c2f-4e81-a6b2-0f9a8c7d5e3c",
+  "eventType": "inventory.reservation-failed",
+  "tenantId": "tenant-e2e",
+  "occurredAt": "2026-08-02T21:49:00.000Z",
+  "payload": {
+    "orderId": "a387b12e-9bef-450d-b20a-ef370c07aa57",
+    "reason": "Insufficient stock for product prod-e2e"
+  }
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `orderId` | UUID string | Same value as the Kafka message key. |
+| `reason` | string | Human-readable reason for the failure, useful for audit logs. |
+
+### `payment.authorized`
+
+Produced by Payment Service when the payment gateway successfully authorizes the charge.
+
+```json
+{
+  "eventId": "d4cc1b4e-3c2f-4e81-a6b2-0f9a8c7d5e3d",
+  "eventType": "payment.authorized",
+  "tenantId": "tenant-e2e",
+  "occurredAt": "2026-08-02T21:49:10.000Z",
+  "payload": {
+    "orderId": "a387b12e-9bef-450d-b20a-ef370c07aa57",
+    "paymentIntentId": "pi_12345"
+  }
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `orderId` | UUID string | Same value as the Kafka message key. |
+| `paymentIntentId` | string | Provider's transaction ID (e.g., Stripe PaymentIntent). |
+
+### `payment.failed`
+
+Produced by Payment Service when the payment gateway rejects the authorization. Triggers saga compensation.
+
+```json
+{
+  "eventId": "e5cc1b4e-3c2f-4e81-a6b2-0f9a8c7d5e3e",
+  "eventType": "payment.failed",
+  "tenantId": "tenant-e2e",
+  "occurredAt": "2026-08-02T21:49:10.000Z",
+  "payload": {
+    "orderId": "a387b12e-9bef-450d-b20a-ef370c07aa57",
+    "paymentIntentId": "pi_12345",
+    "reason": "Card declined"
+  }
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `orderId` | UUID string | Same value as the Kafka message key. |
+| `paymentIntentId` | string | Provider's transaction ID (if any was created before rejection). |
+| `reason` | string | Reason for rejection (e.g., "Card declined"). |
 
 ---
 
