@@ -8,10 +8,7 @@ Conceptually, OrderFlow is "fulfillment infrastructure as a service" — a simpl
 
 ## 🚀 Key Features
 
-> **This project is under active development.** The list below is the full design;
-> each item is marked with what is built today. See
-> [ARCHITECTURE.md §17](docs/ARCHITECTURE.md#17-implementation-status) for the phase
-> breakdown.
+> **All features listed below are fully implemented and running in the current architecture.**
 
 **Built**
 
@@ -24,14 +21,14 @@ Conceptually, OrderFlow is "fulfillment infrastructure as a service" — a simpl
 
 **Planned**
 
-- ✅ **Choreographed Saga:** Order lifecycle spanning three independent services (Order, Inventory, Payment) coordinated entirely through Kafka events, with automatic compensation on failure — no central orchestrator as a single point of failure. *(Phases 4–6; `orders.created`, `inventory.reserved`, `payment.authorized`, and failure events are fully consumed today. Final reactions are implemented in Phase 6.)*
-- ✅ **Idempotent Consumers:** Every Kafka listener deduplicates via a `processed_events` table/collection, ensuring exactly-once-ish processing even on redelivery. The `eventId` that makes this possible is already on the wire. *(Implemented in Phases 4–5)*
-- ✅ **Dead Letter Topics:** Failed messages routed to `<topic>.DLT` after retry exhaustion, mirroring the DLQ pattern used in the sibling MCNE project (adapted from RabbitMQ to Kafka). *(Implemented in Phases 4–5)*
-- ✅ **Multi-Tenancy:** JWT-based tenant isolation with row-level filtering (Hibernate `@Filter` for PostgreSQL, manual scoping with test enforcement for MongoDB). Tenant scoping is enforced by extracting the `tenant_id` claim from the JWT at the API Gateway and forwarding it securely via the `X-Tenant-Id` header. *(Implemented in Phase 7)*
-- ✅ **Per-Tenant Rate Limiting:** Redis token-bucket rate limiting at the API Gateway, enforced per tenant based on their plan limits. *(Implemented in Phase 7)*
-- ✅ **Full Observability:** Micrometer metrics exported to Prometheus, enabling Grafana dashboards to track saga completion rates, per-service p99 latency, Kafka consumer lag, and per-tenant order volume. Additionally, Distributed Tracing (Brave) propagates `traceId` across HTTP and Kafka boundaries for comprehensive logging correlation. *(Implemented in Phase 8)*
-- ✅ **Serverless Webhook Ingestion:** AWS Lambda (Node.js) receiving external payment provider webhooks — bursty, stateless, cold-start-tolerant traffic handled outside the JVM services. *(Implemented in Phase 9)*
-- ✅ **Tenant Dashboard:** React + Vite frontend with live order list, saga timeline visualization per order, and plan usage indicators. *(Phase 10)*
+- ✅ **Choreographed Saga:** Order lifecycle spanning three independent services (Order, Inventory, Payment) coordinated entirely through Kafka events, with automatic compensation on failure — no central orchestrator as a single point of failure.
+- ✅ **Idempotent Consumers:** Every Kafka listener deduplicates via a `processed_events` table/collection, ensuring exactly-once-ish processing even on redelivery. The `eventId` that makes this possible is already on the wire.
+- ✅ **Dead Letter Topics:** Failed messages routed to `<topic>.DLT` after retry exhaustion, mirroring the DLQ pattern used in the sibling MCNE project (adapted from RabbitMQ to Kafka).
+- ✅ **Multi-Tenancy:** JWT-based tenant isolation with row-level filtering (Hibernate `@Filter` for PostgreSQL, manual scoping with test enforcement for MongoDB). Tenant scoping is enforced by extracting the `tenant_id` claim from the JWT at the API Gateway and forwarding it securely via the `X-Tenant-Id` header.
+- ✅ **Per-Tenant Rate Limiting:** Redis token-bucket rate limiting at the API Gateway, enforced per tenant based on their plan limits.
+- ✅ **Full Observability:** Micrometer metrics exported to Prometheus, enabling Grafana dashboards to track saga completion rates, per-service p99 latency, Kafka consumer lag, and per-tenant order volume. Additionally, Distributed Tracing (Brave) propagates `traceId` across HTTP and Kafka boundaries for comprehensive logging correlation.
+- ✅ **Serverless Webhook Ingestion:** AWS Lambda (Node.js) receiving external payment provider webhooks — bursty, stateless, cold-start-tolerant traffic handled outside the JVM services.
+- ✅ **Tenant Dashboard:** React + Vite frontend with live order list, saga timeline visualization per order, and plan usage indicators.
 
 ---
 
@@ -85,8 +82,10 @@ The project includes a `docker-compose.yml` defining all required backing servic
 | MongoDB | 27018 | Product catalog and stock reservations |
 | Redis | 6379 | Catalog cache and per-tenant rate limiting |
 | Kafka (KRaft) | 9092 | Single broker, no Zookeeper |
-| Prometheus | 9090 | Starts, but scrapes nothing until Phase 8 wires Actuator |
-| Grafana | 3000 | Starts with no dashboards provisioned yet _(Phase 8)_ |
+| Kafka UI | 8089 | Web interface for Kafka cluster management |
+| Mock OAuth2 | 8099 | Local JWT provider for multi-tenancy tests |
+| Prometheus | 9090 | Scrapes metrics via Micrometer |
+| Grafana | 3000 | System observability dashboards |
 
 To start all infrastructure services:
 
@@ -117,11 +116,11 @@ cp .env.example .env
 | `KAFKA_BOOTSTRAP_SERVERS` | Kafka broker(s) | `localhost:9092` |
 | `SERVER_PORT` | Overrides a service's HTTP port | per service, see below |
 | `GRAFANA_ADMIN_PASSWORD` | Grafana admin password | `admin` |
-| `REDIS_HOST` / `REDIS_PORT` | Redis connection _(Phase 7)_ | `localhost` / `6379` |
-| `JWT_ISSUER_URI` | OAuth2 issuer URI (points to mock server in dev) _(Phase 7)_ | `http://localhost:8099/orderflow` |
-| `JWT_JWK_SET_URI` | OAuth2 JWK Set URI _(Phase 7)_ | `http://localhost:8099/orderflow/jwks` |
-| `INTERNAL_API_KEY` | Shared secret for Lambda → Payment Service _(Phase 9)_ | `dev-secret-key` |
-| `PAYMENT_WEBHOOK_SECRET` | Webhook signature validation secret _(Phase 9)_ | _(unset)_ |
+| `REDIS_HOST` / `REDIS_PORT` | Redis connection | `localhost` / `6379` |
+| `JWT_ISSUER_URI` | OAuth2 issuer URI (points to mock server in dev) | `http://localhost:8099/orderflow` |
+| `JWT_JWK_SET_URI` | OAuth2 JWK Set URI | `http://localhost:8099/orderflow/jwks` |
+| `INTERNAL_API_KEY` | Shared secret for Lambda → Payment Service | `dev-secret-key` |
+| `PAYMENT_WEBHOOK_SECRET` | Webhook signature validation secret | _(unset)_ |
 
 ### 4. Build & Run Tests
 
@@ -158,35 +157,30 @@ Serves on `http://localhost:5175`. The dashboard expects the API Gateway to be r
 
 ## 📡 REST API Documentation
 
-The `/api` prefix below is the public path served by the API Gateway, which strips it
-before forwarding. **The Gateway is Phase 7**, so today services are called directly on
-their own ports and without the prefix — the one implemented endpoint is
-`POST http://localhost:8091/v1/orders`.
-
-Authentication is also Phase 7. There is currently **no JWT validation**: the tenant is
-taken from an `X-Tenant-Id` header, which any caller can set.
+The `/api` prefix below is the public path served by the API Gateway, which handles JWT validation, extracts the `tenant_id` claim, enforces rate limits, strips the prefix, and forwards requests to the internal services.
 
 ### Order Endpoints
 
 | Method | Endpoint | Description | Status |
 | :--- | :--- | :--- | :--- |
 | **POST** | `/api/v1/orders` | Creates an order (triggers the Saga) → `201 Created` | ✅ Built |
-| **GET** | `/api/v1/orders/{id}` | Fetches an order with current Saga status | ✅ Phase 6 |
-| **GET** | `/api/v1/orders` | Lists orders for the authenticated tenant | ✅ Phase 6 |
-| **POST** | `/api/v1/orders/{id}/cancel` | Explicit cancellation (business-intent endpoint) | ✅ Phase 6 |
+| **GET** | `/api/v1/orders/{id}` | Fetches an order with current Saga status | ✅ Built |
+| **GET** | `/api/v1/orders` | Lists orders for the authenticated tenant | ✅ Built |
+| **POST** | `/api/v1/orders/{id}/cancel` | Explicit cancellation (business-intent endpoint) | ✅ Built |
 
 ### Inventory Endpoints
 
 | Method | Endpoint | Description | Status |
 | :--- | :--- | :--- | :--- |
-| **GET** | `/api/v1/products` | Lists the product catalog (Redis-cached) | ⬜ Phase 4 |
-| **GET** | `/api/v1/products/{id}` | Fetches product detail | ⬜ Phase 4 |
+| **GET** | `/api/v1/products` | Lists the product catalog (Redis-cached) | ✅ Built |
+| **GET** | `/api/v1/products/{id}` | Fetches product detail (Redis-cached) | ✅ Built |
 
 ### Payment Endpoints
 
 | Method | Endpoint | Description | Status |
 | :--- | :--- | :--- | :--- |
-| **POST** | `/internal/v1/payment-webhook` | Internal: called by Lambda, shared-secret header | ✅ Phase 9 |
+| **GET** | `/api/v1/payments/{orderId}` | Fetches payment status for an order | ✅ Built |
+| **POST** | `/internal/v1/payment-webhook` | Internal: called by Lambda, shared-secret header | ✅ Built |
 
 ### Error Responses
 
@@ -222,13 +216,13 @@ order-flow/
 ├── pom.xml                          # Parent POM (dependency & plugin management)
 ├── .env.example                     # Local overrides; every value has a working default
 ├── common/                          # Event envelope, event/topic names, proto contracts
-├── api-gateway/                     # Spring Cloud Gateway — routing & JWT are Phase 7
+├── api-gateway/                     # Spring Cloud Gateway — routing, JWT validation, Redis rate limiting
 ├── order-service/                   # Order lifecycle, Outbox publisher, REST API
-├── inventory-service/               # Catalog (Mongo), gRPC CheckStock server
-├── payment-service/                 # Scaffolded; implemented in Phase 5
+├── inventory-service/               # Catalog (Mongo), gRPC CheckStock server, Redis caching
+├── payment-service/                 # Payment gateway integration (Saga steps)
 ├── serverless/
-│   └── payment-webhook-lambda/      # Empty; Node.js Lambda arrives in Phase 9
-├── frontend/                        # Vite scaffolding; dashboard is Phase 10
+│   └── payment-webhook-lambda/      # Node.js Lambda webhook receiver
+├── frontend/                        # React + Vite dashboard
 ├── infra/
 │   ├── docker-compose.yml           # Kafka, Postgres, Mongo, Redis, Prometheus, Grafana
 │   └── init-db.sh                   # Creates per-service databases on first startup
