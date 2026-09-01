@@ -314,8 +314,8 @@ completed below is still a plan.
 | 1 | Order Service: Flyway, JPA, Outbox, REST, RFC 7807, tests | ✅ Done |
 | 2 | Inventory Service: MongoDB, gRPC contract + server + client | ✅ Done |
 | 3 | Outbox poller publishing to Kafka | ✅ Done |
-| 4 | Inventory: Kafka consumer, stock reservations, compensation | ⬜ Planned |
-| 5 | Payment Service: entities, Kafka consumer, webhook endpoint | ⬜ Planned |
+| 4 | Inventory: Kafka consumer, stock reservations, compensation | ✅ Done |
+| 5 | Payment Service: entities, Kafka consumer, webhook endpoint | ✅ Done |
 | 6 | Order: Saga reactions (CONFIRMED / CANCELLED) and compensation | ✅ Done |
 | 7 | API Gateway: routing, JWT validation, Redis rate limiting | ✅ Done |
 | 8 | Observability: Prometheus, Grafana, correlation IDs | ✅ Done |
