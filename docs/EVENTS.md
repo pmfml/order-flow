@@ -317,6 +317,6 @@ Produced by Payment Service when the payment gateway rejects the authorization. 
 - **Removing or renaming** a field, or narrowing a type, is breaking. Publish a
   new `eventType` instead and retire the old one once no consumer reads it.
 - Consumers must ignore unknown fields rather than fail on them.
-- The envelope itself is frozen. New cross-cutting metadata (for example the
-  correlation id arriving in Phase 8) is added here as an envelope field and
+- The envelope itself is frozen. New cross-cutting metadata (for example,
+  distributed tracing correlation IDs) is added here as an envelope field and
   rolled out to all producers together.

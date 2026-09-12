@@ -10,20 +10,15 @@ Conceptually, OrderFlow is "fulfillment infrastructure as a service" — a simpl
 
 > **All features listed below are fully implemented and running in the current architecture.**
 
-**Built**
-
 - ✅ **Transactional Outbox:** Order creation and event recording happen in the same database transaction, eliminating the dual-write problem between PostgreSQL and Kafka. A polling publisher waits for the broker acknowledgement before marking a row published, so a failed send is retried rather than lost.
 - ✅ **Hybrid Sync/Async Communication:** gRPC for the one call requiring an immediate answer (stock availability for the requested quantity, before the order is accepted); Kafka for everything else.
-- ✅ **Polyglot Persistence:** PostgreSQL for transactional data (orders, outbox), MongoDB for the product catalog with flexible, category-dependent attributes. Redis is provisioned for Phase 7.
+- ✅ **Polyglot Persistence:** PostgreSQL for transactional data (orders, outbox), MongoDB for the product catalog with flexible, category-dependent attributes, and Redis for catalog caching and rate limiting.
 - ✅ **Authoritative Pricing:** Item prices and names are never taken from the client. They are read from the catalog over gRPC, so a tampered request cannot change what an order costs.
 - ✅ **Versioned Schema:** Flyway owns the PostgreSQL schema, with Hibernate set to `validate` and an integration test that runs the real migrations to catch entity/schema drift.
 - ✅ **RFC 7807 Error Contract:** `ProblemDetail` responses that distinguish business outcomes from server faults — `409` for insufficient stock, `404` for an unknown product, `503` for an unreachable dependency.
-
-**Planned**
-
 - ✅ **Choreographed Saga:** Order lifecycle spanning three independent services (Order, Inventory, Payment) coordinated entirely through Kafka events, with automatic compensation on failure — no central orchestrator as a single point of failure.
 - ✅ **Idempotent Consumers:** Every Kafka listener deduplicates via a `processed_events` table/collection, ensuring exactly-once-ish processing even on redelivery. The `eventId` that makes this possible is already on the wire.
-- ✅ **Dead Letter Topics:** Failed messages routed to `<topic>.DLT` after retry exhaustion, mirroring the DLQ pattern used in the sibling MCNE project (adapted from RabbitMQ to Kafka).
+- ✅ **Dead Letter Topics:** Failed messages routed to `<topic>.DLT` after retry exhaustion via Spring Kafka's `DeadLetterPublishingRecoverer`, isolating poison-pill messages without stalling partition consumption.
 - ✅ **Multi-Tenancy:** JWT-based tenant isolation with row-level filtering (Hibernate `@Filter` for PostgreSQL, manual scoping with test enforcement for MongoDB). Tenant scoping is enforced by extracting the `tenant_id` claim from the JWT at the API Gateway and forwarding it securely via the `X-Tenant-Id` header.
 - ✅ **Per-Tenant Rate Limiting:** Redis token-bucket rate limiting at the API Gateway, enforced per tenant based on their plan limits.
 - ✅ **Full Observability:** Micrometer metrics exported to Prometheus, enabling Grafana dashboards to track saga completion rates, per-service p99 latency, Kafka consumer lag, and per-tenant order volume. Additionally, Distributed Tracing (Brave) propagates `traceId` across HTTP and Kafka boundaries for comprehensive logging correlation.

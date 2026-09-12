@@ -73,6 +73,7 @@ orderflow/
 │   └── docker-compose.yml         # Kafka, Postgres, Mongo, Redis, Prometheus, Grafana
 ├── docs/
 │   ├── ARCHITECTURE.md
+│   ├── EVENTS.md                  # Kafka event contract and payload schemas
 │   └── TROUBLESHOOTING.md         # Solutions to known Spring Boot 4.1 migration issues
 └── README.md
 ```
@@ -201,7 +202,7 @@ Implemented via a polling publisher for this project's current scope (simple, ex
 
 ### 7.7 Dead Letter Topics
 
-Spring Kafka's `DefaultErrorHandler` + `DeadLetterPublishingRecoverer` routes messages that fail after retries to `<topic>.DLT`. Mirrors the retry/DLQ philosophy already used in MCNE (RabbitMQ), adapted to Kafka.
+Spring Kafka's `DefaultErrorHandler` + `DeadLetterPublishingRecoverer` routes messages that fail after retries to `<topic>.DLT`. This isolates poison-pill messages from halting partition consumer lag while preserving failed events for subsequent inspection and replay.
 
 ## 8. Synchronous Communication (gRPC)
 
@@ -264,10 +265,10 @@ React + Vite, dark glassmorphic theme (Outfit/Inter typography, gradient accents
 | Order Service | 8091 | |
 | Inventory Service | 8092 (REST) / 9095 (gRPC) | |
 | Payment Service | 8093 | |
-| Frontend (Vite dev) | 5175 | Distinct from MCNE/Cognitive Vault frontends |
+| Frontend (Vite dev) | 5175 | Local React development server |
 | Lambda (local, serverless-offline) | 3001 | |
 
-None of these collide with MCNE (Postgres 5435, RabbitMQ 5672/15672, app 8081) or Cognitive Vault (Postgres 5434, MinIO 9000/9001, Elasticsearch 9200) — all three can run simultaneously.
+Host port allocations are designated with dedicated offsets (e.g., PostgreSQL on 5436, MongoDB on 27018) to avoid collisions with standard local database instances or other development environments.
 
 ## 15. Technology Stack Summary
 
