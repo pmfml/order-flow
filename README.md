@@ -123,9 +123,21 @@ cp .env.example .env
 ./mvnw clean verify
 ```
 
-### 5. Running a Service
+### 5. Running the System
 
-Each service can be started individually from the project root:
+You can run the entire system (including Maven build, Docker infrastructure, and Java background services) with a single command:
+
+```bash
+./start-all.sh
+```
+
+To stop all services and containers cleanly later, run:
+
+```bash
+./stop-all.sh
+```
+
+If you prefer to run a single service manually (e.g., for debugging), you can start it from the project root:
 
 ```bash
 ./mvnw -pl order-service spring-boot:run
