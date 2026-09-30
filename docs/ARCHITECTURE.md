@@ -322,6 +322,7 @@ completed below is still a plan.
 | 8 | Observability: Prometheus, Grafana, correlation IDs | ✅ Done |
 | 9 | Lambda: external payment webhook (Node.js) | ✅ Done |
 | 10 | Frontend: React + Vite, Saga timeline, tenant dashboard | ✅ Done |
+| 11 | Frontend: B2C Storefront (Catalog, Cart, Checkout) | 🚧 In Progress |
 
 Consequences worth stating explicitly, because the design sections above describe
 their end state:
@@ -394,3 +395,11 @@ their end state:
 - `OrderDetailPage` with an interactive, inferred `SagaTimeline` visual pipeline.
 - `PlanUsage` sidebar widget reactive to `X-RateLimit-*` headers for quota visibility.
 - Mobile-responsive layout, accessibility improvements (skip links, focus rings, reduced motion), and SVG favicon.
+
+### 🚧 Phase 11: B2C Storefront (In Progress)
+- [x] Product domain models and API client typing
+- [ ] Global Cart Context & LocalStorage persistence
+- [ ] Storefront Layout & Admin Switcher
+- [ ] Product Catalog Vitrine & Category Filters
+- [ ] Checkout Flow integrated with Saga
+- [ ] Visual polish, Empty States & Documentation

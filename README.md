@@ -24,6 +24,7 @@ Conceptually, OrderFlow is "fulfillment infrastructure as a service" — a simpl
 - ✅ **Full Observability:** Micrometer metrics exported to Prometheus, enabling Grafana dashboards to track saga completion rates, per-service p99 latency, Kafka consumer lag, and per-tenant order volume. Additionally, Distributed Tracing (Brave) propagates `traceId` across HTTP and Kafka boundaries for comprehensive logging correlation.
 - ✅ **Serverless Webhook Ingestion:** AWS Lambda (Node.js) receiving external payment provider webhooks — bursty, stateless, cold-start-tolerant traffic handled outside the JVM services.
 - ✅ **Tenant Dashboard:** React + Vite frontend with live order list, saga timeline visualization per order, and plan usage indicators.
+- 🚧 **B2C Storefront (In Progress):** Currently implementing a full-featured B2C shopping interface (Product Catalog, Cart, Checkout) directly integrated with the Kafka Saga.
 
 ---
 
