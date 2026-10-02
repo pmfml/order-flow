@@ -33,6 +33,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <span className="nav-icon" aria-hidden="true">📦</span>
             Orders
           </NavLink>
+          
+          <NavLink
+            to="/store"
+            className="nav-link"
+            id="nav-storefront"
+          >
+            <span className="nav-icon" aria-hidden="true">🛒</span>
+            View Storefront
+          </NavLink>
         </nav>
 
         <div className="sidebar-footer">

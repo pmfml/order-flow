@@ -1,0 +1,115 @@
+.storefront-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-color, #111111);
+  color: var(--text-color, #eaeaea);
+}
+
+.storefront-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: rgba(20, 20, 20, 0.7);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.storefront-logo a {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.storefront-logo .logo-icon {
+  background: linear-gradient(135deg, #a855f7, #3b82f6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.storefront-search input {
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: #fff;
+  width: 300px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.storefront-search input:focus {
+  border-color: #a855f7;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.storefront-nav {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.storefront-nav a {
+  text-decoration: none;
+  color: #bbb;
+  font-weight: 500;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.storefront-nav a:hover {
+  color: #fff;
+}
+
+.cart-badge-link {
+  position: relative;
+}
+
+.cart-badge {
+  background: #a855f7;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: bold;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  position: absolute;
+  top: -8px;
+  right: -20px;
+}
+
+.admin-link {
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.admin-link:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.storefront-main {
+  flex: 1;
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.storefront-footer {
+  text-align: center;
+  padding: 2rem;
+  font-size: 0.875rem;
+  color: #666;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
