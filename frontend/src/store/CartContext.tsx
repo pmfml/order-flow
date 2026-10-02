@@ -1,9 +1,9 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
-import type { ProductResponse, CartItem } from '../types/product'
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
+import type { Product, CartItem } from '../types/product'
 
 interface CartContextType {
   items: CartItem[]
-  addItem: (product: ProductResponse, quantity?: number) => void
+  addItem: (product: Product, quantity?: number) => void
   removeItem: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
   clearCart: () => void
@@ -13,10 +13,25 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | null>(null)
 
-export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([])
+const STORAGE_KEY = 'orderflow_cart'
 
-  const addItem = useCallback((product: ProductResponse, quantity = 1) => {
+export function CartProvider({ children }: { children: ReactNode }) {
+  // Lazily initialize state from localStorage
+  const [items, setItems] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  // Sincroniza com localStorage sempre que os itens mudam
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+  }, [items])
+
+  const addItem = useCallback((product: Product, quantity = 1) => {
     setItems((prev) => {
       const existing = prev.find((item) => item.product.id === product.id)
       if (existing) {
