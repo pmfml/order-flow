@@ -31,7 +31,7 @@ Each major technical decision below fits a genuine constraint or trade-off in th
 
 ```mermaid
 flowchart LR
-    Client[Tenant Dashboard - React] --> GW[API Gateway]
+    Client[Tenant Dashboard & B2C Storefront - React] --> GW[API Gateway]
     GW -->|REST + JWT| OS[Order Service]
     GW -->|REST + JWT| IS[Inventory Service]
     GW -->|REST + JWT| PS[Payment Service]
@@ -322,7 +322,7 @@ completed below is still a plan.
 | 8 | Observability: Prometheus, Grafana, correlation IDs | ✅ Done |
 | 9 | Lambda: external payment webhook (Node.js) | ✅ Done |
 | 10 | Frontend: React + Vite, Saga timeline, tenant dashboard | ✅ Done |
-| 11 | Frontend: B2C Storefront (Catalog, Cart, Checkout) | 🚧 In Progress |
+| 11 | Frontend: B2C Storefront (Catalog, Cart, Checkout) | ✅ Done |
 
 Consequences worth stating explicitly, because the design sections above describe
 their end state:
@@ -396,10 +396,12 @@ their end state:
 - `PlanUsage` sidebar widget reactive to `X-RateLimit-*` headers for quota visibility.
 - Mobile-responsive layout, accessibility improvements (skip links, focus rings, reduced motion), and SVG favicon.
 
-### 🚧 Phase 11: B2C Storefront (In Progress)
-- [x] Product domain models and API client typing
-- [ ] Global Cart Context & LocalStorage persistence
-- [ ] Storefront Layout & Admin Switcher
-- [ ] Product Catalog Vitrine & Category Filters
-- [ ] Checkout Flow integrated with Saga
-- [ ] Visual polish, Empty States & Documentation
+### ✅ Phase 11: B2C Storefront
+- Built commercial B2C shopping storefront alongside the B2B Tenant Dashboard.
+- Domain models and API client (`api/products.ts`) for catalog querying with category filters.
+- Global Cart state management (`CartContext`) with reactive badge count and `localStorage` persistence.
+- Storefront navigation layout (`StorefrontLayout`) with dynamic view switching between Storefront and Admin Dashboard.
+- Interactive Product Catalog grid (`StorefrontPage` and `ProductCard`) with live stock status indicators (`IN_STOCK`, `LOW_STOCK`, `OUT_OF_STOCK`).
+- Full Shopping Cart page (`CartPage`) with real-time quantity validation against inventory limits, item removal, and subtotal calculations.
+- Integrated Checkout page (`CheckoutPage`) invoking `POST /api/v1/orders` to trigger the distributed Kafka Saga, with immediate order tracking links to the Admin Saga dashboard.
+- Rich Product Detail page (`ProductDetailPage`) showcasing dynamic MongoDB schema attributes (polyglot persistence demonstration).

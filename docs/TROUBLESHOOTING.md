@@ -17,6 +17,7 @@ Guide to errors encountered during development and their solutions.
 8. [Spring Boot 4.0 — spring.data.mongodb.uri is silently ignored](#8-spring-boot-40--springdatamongodburi-is-silently-ignored)
 9. [Test application.properties shadows the main one instead of merging](#9-test-applicationproperties-shadows-the-main-one-instead-of-merging)
 10. [Spring Boot 3.4+ — @MockBean deprecated in favour of @MockitoBean](#10-spring-boot-34--mockbean-deprecated-in-favour-of-mockitobean)
+11. [TypeScript / Modern Node — TS1294 Parameter Property disallowed with erasableSyntaxOnly](#11-typescript--modern-node--ts1294-parameter-property-disallowed-with-erasablesyntaxonly)
 
 ---
 
@@ -446,4 +447,51 @@ Key differences to be aware of:
   in the application context), whereas `@MockBean` matched by type.
 - If your bean is registered with a specific name (e.g., `customRedisRateLimiter`),
   your test field must use the same name.
+
+---
+
+## 11. TypeScript / Modern Node — TS1294 Parameter Property disallowed with erasableSyntaxOnly
+
+### Error
+
+```text
+src/api/client.ts(30,14): error TS1294: Parameter property 'status' is not allowed when '--erasableSyntaxOnly' is enabled.
+src/api/client.ts(31,14): error TS1294: Parameter property 'detail' is not allowed when '--erasableSyntaxOnly' is enabled.
+```
+
+### Cause
+
+Modern TypeScript setups (and environments using native type-stripping flags such as Node.js `--experimental-strip-types` or `tsconfig` with `"erasableSyntaxOnly": true`) require all TypeScript syntax to be purely erasable. 
+
+Constructor parameter properties (e.g., `constructor(public readonly status: number)`) generate runtime JavaScript assignment code (`this.status = status;`) and thus cannot simply be stripped away.
+
+### Solution
+
+Declare explicit class fields with standard constructor parameter assignments:
+
+```typescript
+// ❌ Before (Requires JS emission for parameter properties)
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly detail: string,
+  ) {
+    super(detail)
+    this.name = 'ApiError'
+  }
+}
+
+// ✅ After (Purely erasable types)
+export class ApiError extends Error {
+  public readonly status: number
+  public readonly detail: string
+
+  constructor(status: number, detail: string) {
+    super(detail)
+    this.name = 'ApiError'
+    this.status = status
+    this.detail = detail
+  }
+}
+```
 
