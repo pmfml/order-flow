@@ -56,8 +56,8 @@ export default function CheckoutPage() {
       clearCart()
       navigate(`/store/checkout?success=${order.id}`, { replace: true })
       
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during checkout.')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred during checkout.')
     } finally {
       setSubmitting(false)
     }

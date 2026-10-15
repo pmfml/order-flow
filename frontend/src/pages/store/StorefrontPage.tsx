@@ -20,8 +20,8 @@ export default function StorefrontPage() {
         const data = await getProducts({ category: categoryFilter })
         setProducts(data)
         setError(null)
-      } catch (err: any) {
-        setError(err.message || 'Failed to load products.')
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load products.')
       } finally {
         setLoading(false)
       }

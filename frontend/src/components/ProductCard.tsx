@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { type Product, getStockStatus } from '../types/product'
 import { useCart } from '../store/CartContext'
 import './ProductCard.css'
@@ -22,13 +23,17 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <div className={`product-card ${isOutOfStock ? 'out-of-stock' : ''}`}>
-      <div className="product-image-placeholder">
-        {status === 'LOW_STOCK' && <span className="badge badge-warning">Low Stock</span>}
-        {status === 'OUT_OF_STOCK' && <span className="badge badge-danger">Out of Stock</span>}
-        <span className="product-category">{product.category}</span>
-      </div>
+      <Link to={`/store/products/${product.id}`} className="product-image-link" tabIndex={-1}>
+        <div className="product-image-placeholder">
+          {status === 'LOW_STOCK' && <span className="badge badge-warning">Low Stock</span>}
+          {status === 'OUT_OF_STOCK' && <span className="badge badge-danger">Out of Stock</span>}
+          <span className="product-category">{product.category}</span>
+        </div>
+      </Link>
       <div className="product-info">
-        <h3>{product.name}</h3>
+        <Link to={`/store/products/${product.id}`} className="product-title-link">
+          <h3>{product.name}</h3>
+        </Link>
         <p className="product-sku">SKU: {product.sku}</p>
         <div className="product-price">
           ${product.price.toFixed(2)}
